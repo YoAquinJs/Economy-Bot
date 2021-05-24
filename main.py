@@ -129,7 +129,7 @@ async def send_coins(ctx, receptor, quantity: float):
 async def init_economy(ctx):
     ctx.channel.purge(limit=1)
     i = 0
-    for j in os.listdir(f"{current_dir}/servers/server_guild_{ctx.guild.id}/EconomyLogs"):
+    for j in os.listdir(f"{server(ctx.guild)}/EconomyLogs"):
         logn = int(j[4])
         if logn >= i:
             i = i + i - logn + 1
@@ -142,7 +142,7 @@ async def init_economy(ctx):
         economic_users[rnd_user]["coins"] += 1
         local_settings["EconomicUsers"] = economic_users
         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-        with open(f"{current_dir}/servers/server_guild_{ctx.guild.id}/EconomyLogs/log_{i}.txt", "w") as log:
+        with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
             log.write(f"{str(datetime.datetime.now(pytz.utc))}\n{economic_users}")
         await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {rnd_user}")
         i += 1
