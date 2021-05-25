@@ -7,6 +7,18 @@ from random import randint
 from moviepy.editor import *
 from discord.ext import commands
 
+import pymongo
+
+# Usuario y contrasena de la base de datos
+USER = 'Bonobo'
+PASS = 'RovivirM'
+# URL de la base de datos en Mongo Atlas
+url_db = f"mongodb+srv://{USER}:{PASS}@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
+# cliente de mongo Atlas
+client_db = pymongo.MongoClient(url_db)
+database_mongo = client_db.BonoboDB
+
+
 # region Settings
 # los settings globales aplican a todos los servidores en que se encuentre el bot (prefix y token)
 with open("settings.json", "r") as tmp:
@@ -152,7 +164,20 @@ async def init_economy(ctx):
         # creacion del log el cual es guardado en local_settings/server_guild_0000000 (directorio personale de cada
         # servidor) /EconomyLogs
         with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
-            log.write(f"{str(datetime.datetime.now(pytz.utc))}\n{economic_users}")
+            # Mandar a mongo
+
+            date_string = str(datetime.datetime.now(pytz.utc))
+
+            log_bson = {
+                "date": date_string,
+                "data": economic_users
+            }
+
+            collection_db = database_mongo.logs
+            # insertar en la base de datos
+            collection_db.insert_one(log_bson)
+
+            log.write(f"{date_string}\n{economic_users}")
         await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {rnd_user}")
         i += 1
 
