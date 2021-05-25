@@ -8,6 +8,7 @@ from moviepy.editor import *
 from discord.ext import commands
 
 # region Settings
+# los settings globales aplican a todos los servidores en que se encuentre el bot (prefix y token)
 with open("settings.json", "r") as tmp:
     global_settings = json.load(tmp)
 
@@ -85,6 +86,8 @@ async def ping_chek(ctx):
 
 
 # region Economics
+# comando para que un usuario se registre, en este se añade un nuevo elemento al diccionario de usuarios y su cantidad
+# de monedas correspondientes que inicia en 0
 @client.command(name="regi")
 async def register(ctx):
     local_settings = settings(ctx.guild)
@@ -100,6 +103,7 @@ async def register(ctx):
     await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name},tus monedas son 0.0", 3)
 
 
+# comando para transferir monedas de la wallet del usuario a otro usuario
 @client.command(name="send")
 async def send_coins(ctx, receptor, quantity: float):
     local_settings = settings(ctx.guild)
@@ -124,6 +128,9 @@ async def send_coins(ctx, receptor, quantity: float):
         await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
 
 
+# con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
+# y se guarda un log del diccionario con los usuarios y su cantidad de monedas, estos logs deben ser extraidos del host
+# para poder realizar las estadisticas del experimento
 @client.command(name="init")
 @commands.has_permissions(administrator=True)
 async def init_economy(ctx):
@@ -142,6 +149,8 @@ async def init_economy(ctx):
         economic_users[rnd_user]["coins"] += 1
         local_settings["EconomicUsers"] = economic_users
         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+        # creacion del log el cual es guardado en local_settings/server_guild_0000000 (directorio personale de cada
+        # servidor) /EconomyLogs
         with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
             log.write(f"{str(datetime.datetime.now(pytz.utc))}\n{economic_users}")
         await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {rnd_user}")
