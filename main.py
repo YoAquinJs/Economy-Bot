@@ -1,35 +1,33 @@
+import os
 import json
 import pytz
+import shutil
+import pymongo
 import asyncio
 import discord
 import datetime
 from random import randint
-from moviepy.editor import *
 from discord.ext import commands
 
-import pymongo
-
-# Usuario y contrasena de la base de datos
-USER = 'Bonobo'
-PASS = 'RovivirM'
-# URL de la base de datos en Mongo Atlas
-url_db = f"mongodb+srv://{USER}:{PASS}@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-# cliente de mongo Atlas
-client_db = pymongo.MongoClient(url_db)
-database_mongo = client_db.BonoboDB
-
-
 # region Settings
-# los settings globales aplican a todos los servidores en que se encuentre el bot (prefix y token)
+# los settings globales aplican a todos los servidores en que se encuentre el bot (prefix, token, )
 with open("settings.json", "r") as tmp:
     global_settings = json.load(tmp)
 
 client = commands.Bot(command_prefix=global_settings["prefix"], help_command=None,
                       activity=discord.Game(f"Migala Bot | {global_settings['prefix']}help"),
-                      intents=discord.Intents.all(), status=discord.Status.online)
+                      status=discord.Status.online)
 
 intents = discord.Intents(members=True)
 welcome = discord.Client(intents=intents)
+
+# URL de la base de datos en Mongo Atlas
+url_db = f"mongodb+srv://{global_settings['mongoUser']}:{global_settings['mongoPassword']}" \
+         "@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
+print(url_db)
+# cliente de mongo Atlas
+client_db = pymongo.MongoClient(url_db)
+database_mongo = client_db.BonoboDB
 
 # endregion
 
@@ -40,6 +38,9 @@ for char in current_dir:
     if char == '\\':
         current_dir = f"{current_dir[0:i]}/{current_dir[i + 1:len(current_dir)]}"
     i += 1
+
+if not(os.path.isdir(f"{current_dir}/local_settings")):
+    os.mkdir("local_settings")
 
 
 async def send_message(message, text, time):
@@ -86,7 +87,7 @@ async def on_ready():
 @client.event
 async def on_guild_remove(guild):
     print(f"removed {guild.name}, id: {guild.id}")
-    os.rmdir(f"local_settings/server_guild_{guild.id}")
+    shutil.rmtree(f"local_settings/server_guild_{guild.id}")
 
 
 # endregion
@@ -107,7 +108,7 @@ async def register(ctx):
         await send_message(ctx, f"ya estas registrado, participa en la economia!", 3)
         return
 
-    local_settings["EconomicUsers"][ctx.author.name] = {
+    local_settings["EconomicUsers"][ctx.author.id] = {
         "coins": 0.0
     }
 
@@ -117,23 +118,26 @@ async def register(ctx):
 
 # comando para transferir monedas de la wallet del usuario a otro usuario
 @client.command(name="send")
-async def send_coins(ctx, receptor, quantity: float):
+async def send_coins(ctx, receptor: discord.member, quantity: float):
     local_settings = settings(ctx.guild)
     economic_users = local_settings["EconomicUsers"]
+    if quantity >= 0:
+        await send_message(ctx, f"no puedes enviar cantidades negativas o ninguna moneda", 3)
+        return
+
     if not(receptor in economic_users.keys()):
         await send_message(ctx, f"{receptor} no es un usuario registrado", 3)
         return
 
     if ctx.author.name in economic_users.keys():
-        if economic_users[ctx.author.name]["coins"] >= quantity:
+        if economic_users[ctx.author.id]["coins"] >= quantity:
             economic_users[ctx.author.name]["coins"] -= quantity
-            economic_users[receptor]["coins"] += quantity
+            economic_users[receptor.id]["coins"] += quantity
             await send_message(ctx,
-                               f"transaccion completa, quedaste con {economic_users[ctx.author.name]['coins']} monedas"
+                               f"transaccion completa, quedaste con {economic_users[ctx.author.id]['coins']} monedas"
                                , 3)
             local_settings["EconomicUsers"] = economic_users
             json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-            await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name},tus monedas son 0.0", 3)
         else:
             await send_message(ctx, f"no tienes suficientos monedas", 3)
     else:
@@ -148,10 +152,12 @@ async def send_coins(ctx, receptor, quantity: float):
 async def init_economy(ctx):
     ctx.channel.purge(limit=1)
     i = 0
+
     for j in os.listdir(f"{server(ctx.guild)}/EconomyLogs"):
         logn = int(j[4])
         if logn >= i:
             i = i + i - logn + 1
+
     while True:
         local_settings = settings(ctx.guild)
         await asyncio.sleep(900)
@@ -161,11 +167,10 @@ async def init_economy(ctx):
         economic_users[rnd_user]["coins"] += 1
         local_settings["EconomicUsers"] = economic_users
         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-        # creacion del log el cual es guardado en local_settings/server_guild_0000000 (directorio personale de cada
+        # creacion del log el cual es guardado en local_settings/server_guild_0000000 (directorio personal de cada
         # servidor) /EconomyLogs
         with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
             # Mandar a mongo
-
             date_string = str(datetime.datetime.now(pytz.utc))
 
             log_bson = {
@@ -176,7 +181,6 @@ async def init_economy(ctx):
             collection_db = database_mongo.logs
             # insertar en la base de datos
             collection_db.insert_one(log_bson)
-
             log.write(f"{date_string}\n{economic_users}")
         await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {rnd_user}")
         i += 1
