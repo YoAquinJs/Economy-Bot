@@ -104,7 +104,7 @@ async def ping_chek(ctx):
 @client.command(name="regi")
 async def register(ctx):
     local_settings = settings(ctx.guild)
-    if ctx.author.name in local_settings["EconomicUsers"].keys():
+    if ctx.author.id in local_settings["EconomicUsers"].keys():
         await send_message(ctx, f"ya estas registrado, participa en la economia!", 3)
         return
 
@@ -160,7 +160,7 @@ async def init_economy(ctx):
 
     while True:
         local_settings = settings(ctx.guild)
-        await asyncio.sleep(900)
+        await asyncio.sleep(1)
         economic_users = local_settings['EconomicUsers']
         rnd = randint(0, len(economic_users.keys()) - 1)
         rnd_user = list(economic_users.keys())[rnd]
@@ -169,18 +169,20 @@ async def init_economy(ctx):
         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
         # creacion del log el cual es guardado en local_settings/server_guild_0000000 (directorio personal de cada
         # servidor) /EconomyLogs
+        
+        # Mandar a mongo
+        date_string = str(datetime.datetime.now(pytz.utc))
+
+        log_bson = {
+            "date": date_string,
+            "data": economic_users # Lo manda como object
+        }
+
+        collection_db = database_mongo.logs
+        # insertar en la base de datos
+        collection_db.insert_one(log_bson)
+
         with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
-            # Mandar a mongo
-            date_string = str(datetime.datetime.now(pytz.utc))
-
-            log_bson = {
-                "date": date_string,
-                "data": economic_users
-            }
-
-            collection_db = database_mongo.logs
-            # insertar en la base de datos
-            collection_db.insert_one(log_bson)
             log.write(f"{date_string}\n{economic_users}")
         await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {rnd_user}")
         i += 1
