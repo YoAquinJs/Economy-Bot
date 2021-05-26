@@ -169,13 +169,15 @@ async def init_economy(ctx):
         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
         # creacion del log el cual es guardado en local_settings/server_guild_0000000 (directorio personal de cada
         # servidor) /EconomyLogs
-        
+
         # Mandar a mongo
         date_string = str(datetime.datetime.now(pytz.utc))
-
+        log_users = {}
+        for key in economic_users.keys():
+            log_users[f"{discord.utils.get(ctx.guild.members, id=key).name}_{key}"] = economic_users[key]["coins"]
         log_bson = {
             "date": date_string,
-            "data": economic_users # Lo manda como object
+            "data": log_users # Lo manda como object
         }
 
         collection_db = database_mongo.logs
@@ -184,7 +186,7 @@ async def init_economy(ctx):
 
         with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
             log.write(f"{date_string}\n{economic_users}")
-        await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {rnd_user}")
+        await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {discord.utils.get(ctx.guild.members, id=rnd_user)}")
         i += 1
 
 # endregion
