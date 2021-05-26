@@ -1,3 +1,5 @@
 local_info
 /.vscode
 prueba_mongo.py
+/db/__pycache__
+/local_settings

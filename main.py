@@ -2,32 +2,31 @@ import os
 import json
 import pytz
 import shutil
-import pymongo
 import asyncio
 import discord
 import datetime
 from random import randint
 from discord.ext import commands
 
+from db import bonobo_database
+
 # region Settings
 # los settings globales aplican a todos los servidores en que se encuentre el bot (prefix, token, )
 with open("settings.json", "r") as tmp:
     global_settings = json.load(tmp)
 
+intents = discord.Intents.default()
+intents.members = True
+
+
 client = commands.Bot(command_prefix=global_settings["prefix"], help_command=None,
                       activity=discord.Game(f"Migala Bot | {global_settings['prefix']}help"),
-                      status=discord.Status.online)
+                      status=discord.Status.online, intents=intents)
 
 intents = discord.Intents(members=True)
 welcome = discord.Client(intents=intents)
 
-# URL de la base de datos en Mongo Atlas
-url_db = f"mongodb+srv://{global_settings['mongoUser']}:{global_settings['mongoPassword']}" \
-         "@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-print(url_db)
-# cliente de mongo Atlas
-client_db = pymongo.MongoClient(url_db)
-database_mongo = client_db.BonoboDB
+bonobo_database.init_database(global_settings['mongoUser'], global_settings['mongoPassword'])
 
 # endregion
 
@@ -141,9 +140,7 @@ async def send_coins(ctx, receptor: discord.member, quantity: float):
                 "quantity": quantity
             }
 
-            collection_db = database_mongo.transacciones
-            # insertar en la base de datos
-            collection_db.insert_one(tran_bson)
+            bonobo_database.send_transaction(tran_bson)
 
             local_settings["EconomicUsers"] = economic_users
             json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
@@ -177,38 +174,44 @@ async def init_economy(ctx):
 
     while True:
         local_settings = settings(ctx.guild)
-        await asyncio.sleep(1)
-        economic_users = local_settings['EconomicUsers']
+        await asyncio.sleep(2) # Esperar para generar monedas
+
+        economic_users = local_settings['EconomicUsers'] # lee los setings.json del server
+
+        # Toma un usuario al azar para darle una moneda
         rnd = randint(0, len(economic_users.keys()) - 1)
         rnd_user = list(economic_users.keys())[rnd]
         economic_users[rnd_user]["coins"] += 1
+
         local_settings["EconomicUsers"] = economic_users
         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
 
         # Mandar a mongo
         log_users = {}
         for key in economic_users.keys():
-            log_users[f"{client.get_user(key).name}_{key}"] = economic_users[key]["coins"]
+            id_user = int(key)
+            user = client.get_user(id_user)
+
+            log_users[f"{user.name}_{key}"] = economic_users[key]["coins"]
+
         log_bson = {
             "date": str(datetime.datetime.now(pytz.utc)),
             "data": log_users # Lo manda como object
         }
 
-        collection_db = database_mongo.logs
-        # insertar en la base de datos
-        collection_db.insert_one(log_bson)
+        bonobo_database.send_log(log_bson)
 
 #        with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
 #            log.write(f"{date_string}\n{economic_users}")
-        await ctx.channel.send(f"una nueva moneda se ha forjado, se le ah asignado a {client.get_user(rnd_user).name}")
-        i += 1
+        await ctx.channel.send(f"Una nueva moneda se ha forjado, se le ha asignado a {user.name}")
+        # i += 1
 
 # endregion
 
 # Output the list of commands available
 @client.command(name="help")
 async def help_cmd(ctx):
-    helpstr = discord.Embed(title=f"Ayuda | MIGALA BOT {client.command_prefix}help", colour=discord.colour.Color.orange())
+    helpstr = discord.Embed(title=f"Ayuda | MIGALA MONEDAS BOT {client.command_prefix}help", colour=discord.colour.Color.orange())
 
     helpstr.add_field(
         name=f"{client.command_prefix}regi",
@@ -223,6 +226,20 @@ async def help_cmd(ctx):
 
     await ctx.channel.purge(limit=1)
     await ctx.send(embed=helpstr)
+
+
+@client.command()
+async def probar(ctx):
+
+    # Ver miembros
+    g = ctx.guild.members[0].guild
+
+    for m in g.members:
+        print(m)
+
+    print(client.get_user(ctx.author.id))
+    print(client.get_user(609202751213404191))
+    
 
 
 # endregion

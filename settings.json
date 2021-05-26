@@ -1,6 +1,6 @@
 {
   "prefix" : "!",
-  "token" : "token",
+  "token" : "sin token",
   "mongoUser": "Bonobo",
   "mongoPassword": "RovivirM"
 }
