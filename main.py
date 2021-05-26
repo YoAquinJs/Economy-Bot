@@ -101,7 +101,7 @@ async def ping_chek(ctx):
 # region Economics
 # comando para que un usuario se registre, en este se añade un nuevo elemento al diccionario de usuarios y su cantidad
 # de monedas correspondientes que inicia en 0
-@client.command(name="regi")
+@client.command(name="register")
 async def register(ctx):
     local_settings = settings(ctx.guild)
     if ctx.author.id in local_settings["EconomicUsers"].keys():
@@ -133,15 +133,32 @@ async def send_coins(ctx, receptor: discord.member, quantity: float):
         if economic_users[ctx.author.id]["coins"] >= quantity:
             economic_users[ctx.author.name]["coins"] -= quantity
             economic_users[receptor.id]["coins"] += quantity
+
+            tran_bson = {
+                "date": str(datetime.datetime.now(pytz.utc)),
+                "sender": ctx.author.name,
+                "receptor": receptor.name,
+                "quantity": quantity
+            }
+
+            collection_db = database_mongo.transacciones
+            # insertar en la base de datos
+            collection_db.insert_one(tran_bson)
+
+            local_settings["EconomicUsers"] = economic_users
+            json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
             await send_message(ctx,
                                f"transaccion completa, quedaste con {economic_users[ctx.author.id]['coins']} monedas"
                                , 3)
-            local_settings["EconomicUsers"] = economic_users
-            json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
         else:
             await send_message(ctx, f"no tienes suficientos monedas", 3)
     else:
         await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
+
+
+@client.command(name="coins")
+async def get_coins(ctx):
+    await send_message(ctx, f"tienes {settings(ctx.guild)['EconomicUsers'][ctx.author.id]['coins']} bonobo coins", 3)
 
 
 # con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
@@ -150,9 +167,9 @@ async def send_coins(ctx, receptor: discord.member, quantity: float):
 @client.command(name="init")
 @commands.has_permissions(administrator=True)
 async def init_economy(ctx):
-    ctx.channel.purge(limit=1)
-    i = 0
+    await ctx.channel.purge(limit=1)
 
+#    i = 0
 #    for j in os.listdir(f"{server(ctx.guild)}/EconomyLogs"):
 #        logn = int(j[4])
 #        if logn >= i:
@@ -167,16 +184,13 @@ async def init_economy(ctx):
         economic_users[rnd_user]["coins"] += 1
         local_settings["EconomicUsers"] = economic_users
         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-        # creacion del log el cual es guardado en local_settings/server_guild_0000000 (directorio personal de cada
-        # servidor) /EconomyLogs
 
         # Mandar a mongo
-        date_string = str(datetime.datetime.now(pytz.utc))
         log_users = {}
         for key in economic_users.keys():
-            log_users[f"{discord.utils.get(ctx.guild.members, id=key).name}_{key}"] = economic_users[key]["coins"]
+            log_users[f"{client.get_user(key).name}_{key}"] = economic_users[key]["coins"]
         log_bson = {
-            "date": date_string,
+            "date": str(datetime.datetime.now(pytz.utc)),
             "data": log_users # Lo manda como object
         }
 
@@ -186,7 +200,7 @@ async def init_economy(ctx):
 
 #        with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
 #            log.write(f"{date_string}\n{economic_users}")
-        await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {discord.utils.get(ctx.guild.members, id=rnd_user)}")
+        await ctx.channel.send(f"una nueva moneda se ha forjado, se le ah asignado a {client.get_user(rnd_user).name}")
         i += 1
 
 # endregion
