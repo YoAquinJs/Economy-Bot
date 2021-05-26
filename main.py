@@ -153,10 +153,10 @@ async def init_economy(ctx):
     ctx.channel.purge(limit=1)
     i = 0
 
-    for j in os.listdir(f"{server(ctx.guild)}/EconomyLogs"):
-        logn = int(j[4])
-        if logn >= i:
-            i = i + i - logn + 1
+#    for j in os.listdir(f"{server(ctx.guild)}/EconomyLogs"):
+#        logn = int(j[4])
+#        if logn >= i:
+#            i = i + i - logn + 1
 
     while True:
         local_settings = settings(ctx.guild)
@@ -184,8 +184,8 @@ async def init_economy(ctx):
         # insertar en la base de datos
         collection_db.insert_one(log_bson)
 
-        with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
-            log.write(f"{date_string}\n{economic_users}")
+#        with open(f"{server(ctx.guild)}/EconomyLogs/log_{i}.txt", "w") as log:
+#            log.write(f"{date_string}\n{economic_users}")
         await ctx.channel.send(f"una nueva moneda se ah forjado, se le ah asignado a {discord.utils.get(ctx.guild.members, id=rnd_user)}")
         i += 1
 
