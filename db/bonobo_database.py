@@ -12,8 +12,8 @@ def init_database(user, password):
 def send_log(log):
     if CLIENT_MONGO == None:
         return
-    
-    collection_db = CLIENT_MONGO.BonoboDB.log
+
+    collection_db = CLIENT_MONGO.BonoboDB.logs
     collection_db.insert_one(log)
 
 
