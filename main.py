@@ -63,7 +63,7 @@ def server(guild):
 async def on_guild_join(guild):
     print(f"added {guild.name}, id: {guild.id}")
     new_settings = {
-            "EconomicUsers": {}
+            "EconomicUsers": {},
         }
     os.mkdir(f"local_settings/server_guild_{guild.id}")
     os.mkdir(f"local_settings/server_guild_{guild.id}/EconomyLogs")
@@ -160,13 +160,17 @@ async def get_coins(ctx):
 
 
 @client.command(name="usuario")
-async def get_id_by_name(ctx, *, user):
+async def get_user_by_name(ctx, *, user):
+    await ctx.channel.purge(limit=1)
     economic_users = settings(ctx.guild)["EconomicUsers"]
-    msg = "Usuarios encontrados:\n"
     user_founds = 0
 
     if user.startswith("@"):
         user = user[1:len(user)]
+
+    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados",
+                          description=f"tabla de todos los usuarios que inician con el nombre especificado")
+
     for key in economic_users.keys():
         if key.casefold().startswith(user.casefold()):
             user_founds += 1
@@ -177,12 +181,31 @@ async def get_id_by_name(ctx, *, user):
                     break
                 i = i + 1
 
-            msg = f"{msg}usuario:{key[0:i]}; id:{key[i+2:len(key)]}\n"
+            embed.add_field(
+                name=f"{key[0:i]}",
+                value=f"ID:{key[i + 1:len(key)]}\nmonedas:{economic_users[key]['coins']}")
 
     if user_founds == 0:
         user_founds += 1
-        msg = f"{msg}ninguno."
-    await send_message(ctx, msg, user_founds * 3)
+        embed.add_field(name="ninguno")
+    await ctx.channel.send(embed=embed)
+    await asyncio.sleep(user_founds * 3)
+    await ctx.channel.purge(limit=1)
+
+
+@client.command(name="reset")
+@commands.has_permissions(administrator=True)
+async def reset_economy(ctx):
+    local_settings = settings(ctx.guild)
+    economic_users = local_settings["EconomicUsers"]
+
+    for key in economic_users.keys():
+        economic_users[key]["coins"] = 0
+
+    local_settings["EconomicUsers"] = economic_users
+    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+
+    await send_message(ctx, "economia desde 0, todos los usuarios tienen 0 monedas", 3)
 
 
 # con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
@@ -192,12 +215,27 @@ async def get_id_by_name(ctx, *, user):
 @commands.has_permissions(administrator=True)
 async def init_economy(ctx):
     await ctx.channel.purge(limit=1)
+    local_settings = settings(ctx.guild)
+    economic_users = local_settings['EconomicUsers']  # lee los setings.json del server
+    currency_tb = await ctx.channel.send("_")
 
     while True:
-        local_settings = settings(ctx.guild)
-        await asyncio.sleep(5) # Esperar para generar monedas, 900=15min
+        embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
+                              description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
 
-        economic_users = local_settings['EconomicUsers'] # lee los setings.json del server
+        for key in economic_users.keys():
+            i = 0
+            for ch in key:
+                if ch == "_":
+                    break
+                i = i + 1
+
+            embed.add_field(
+                name=f"{key[0:i]}",
+                value=f"ID:{key[i + 1:len(key)]}\nmonedas:{economic_users[key]['coins']}")
+        await currency_tb.edit(embed=embed, content="")
+
+        await asyncio.sleep(5) # Esperar para generar monedas, 900=15min
 
         # Toma un usuario al azar para darle una moneda
         rnd = randint(0, len(economic_users.keys()) - 1)
@@ -226,34 +264,37 @@ async def init_economy(ctx):
 
 # endregion
 
+
 # Output the list of commands available
 @client.command(name="help")
 async def help_cmd(ctx):
-    helpstr = discord.Embed(title=f"Ayuda | MIGALA MONEDAS BOT {client.command_prefix}help", colour=discord.colour.Color.orange())
+    embed = discord.Embed(title=f"Ayuda | MIGALA MONEDAS BOT {client.command_prefix}help",
+                          colour=discord.colour.Color.orange())
 
-    helpstr.add_field(
+    embed.add_field(
         name=f"{client.command_prefix}regis",
         value="Crea una wallet con el nombre de tu usuario",
     )
 
-    helpstr.add_field(
+    embed.add_field(
         name=f"{client.command_prefix}monedas",
         value="Escribe la cantidad de monedas del usuario"
     )
 
-    helpstr.add_field(
+    embed.add_field(
         name=f"{client.command_prefix}usuario",
-        value="Escribe el id de los usuarios encontrados a partir del nombre especificado\n\nArgumentos: nombre: nombre del usuario a busacar (@usuario o usuario)"
+        value="Escribe el id de los usuarios encontrados a partir del nombre especificado\n\nArgumentos: nombre: nombre"
+              " del usuario a busacar (@usuario o usuario)"
     )
 
-    helpstr.add_field(
-        name=f"{client.command_prefix}transferir",
+    embed.add_field(
+        name=f"{client.command_prefix}enviar",
         value="Transfiere bonobo-coins de tu wallet a un usuario\n\nArgumentos: receptor: id del usuario receptor;"
               "cantidad: cantidad de bonobo-coins",
     )
 
     await ctx.channel.purge(limit=1)
-    await ctx.send(embed=helpstr)
+    await ctx.send(embed=embed)
 
 
 @client.command()
