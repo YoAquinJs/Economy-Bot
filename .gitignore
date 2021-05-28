@@ -1,5 +1,9 @@
 local_info
 /.vscode
+/.idea
+/prueba
+/pruebas/*
+
 prueba_mongo.py
 
 /db/__pycache__
