@@ -48,6 +48,18 @@ async def send_message(message, text, time):
     return d_msg
 
 
+# separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se pueda identificar
+# usuario o nombre)
+def key_split(key):
+    i = 0
+    for ch in key:
+        if ch == "_":
+            break
+        i = i + 1
+
+    return [key[0:i], key[i+1:len(key)]]
+
+
 def settings(guild):
     with open(f"{current_dir}/local_settings/server_guild_{guild.id}/settings.json", "r") as file:
         return json.load(file)
@@ -64,6 +76,7 @@ async def on_guild_join(guild):
     print(f"added {guild.name}, id: {guild.id}")
     new_settings = {
             "EconomicUsers": {},
+            "Shop": {},
         }
     os.mkdir(f"local_settings/server_guild_{guild.id}")
     os.mkdir(f"local_settings/server_guild_{guild.id}/EconomyLogs")
@@ -77,6 +90,71 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('-----------')
+
+
+@client.event
+async def on_raw_reaction_add(payload):
+    guild = client.get_guild(payload.guild_id)
+    local_settings = settings(guild)
+    shop = local_settings["Shop"]
+    channel = discord.utils.get(client.get_guild(payload.guild_id).channels, id=payload.channel_id)
+    msg = await channel.fetch_message(payload.message_id)
+
+    if not(str(payload.message_id) in shop.keys()) or payload.member.bot:
+        if not payload.member.bot and str(payload.message_id) in list(shop.keys()):
+            await msg.remove_reaction(payload.emoji, payload.member)
+        return
+
+    await msg.remove_reaction(payload.emoji, payload.member)
+
+    product = shop[str(payload.message_id)]
+    seller_user = await client.fetch_user(product["UserID"])
+
+    if payload.member.id != product["UserID"]:
+        print(product["UserID"])
+        print(payload.member.id)
+        if str(payload.emoji) != "🪙":
+            return
+        else:
+            quantity = product["Price"]
+            economic_users = local_settings["EconomicUsers"]
+            receptor_key = f"{seller_user.name}_{seller_user.id}"
+            author_key = f"{payload.member.name}_{payload.member.id}"
+
+            if author_key in economic_users.keys():
+                if economic_users[author_key]["coins"] >= quantity:
+                    economic_users[author_key]["coins"] -= quantity
+                    economic_users[receptor_key]["coins"] += quantity
+
+                    tran_bson = {
+                        "date": str(datetime.datetime.now(pytz.utc)),
+                        "type": "compra en tienda",
+                        "sender": author_key,
+                        "receptor": receptor_key,
+                        "quantity": quantity,
+                        "product": product["Name"]
+                    }
+
+                    bonobo_database.send_transaction(tran_bson)
+
+                    local_settings["EconomicUsers"] = economic_users
+                    json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
+                    await payload.member.send(f"has adquirido el producto:{product['Name']}, del usuario:"
+                                              f"{seller_user.name}; id:{seller_user.id}")
+                    await seller_user.send(f"el usuario:{payload.member.name}; id:{payload.member.id} ah adquirido tu "
+                                     f"producto:{product['Name']}, debes cumplir con la entrega")
+                else:
+                    await payload.member.send("no tienes suficientes monedas")
+            else:
+                await payload.member.send(f"no estas registrado, registrate con {global_settings['prefix']}regis")
+            pass
+    else:
+        if str(payload.emoji) == "❌":
+            await msg.delete()
+            del shop[str(payload.message_id)]
+            local_settings["Shop"] = shop
+            json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
+            await seller_user.send(f"tu producto {product['Name']} ah sido eliminado")
 
 
 @client.event
@@ -135,6 +213,7 @@ async def send_coins(ctx, receptor_id, quantity: float):
 
             tran_bson = {
                 "date": str(datetime.datetime.now(pytz.utc)),
+                "type": "transferencia",
                 "sender": author_key,
                 "receptor": receptor_key,
                 "quantity": quantity
@@ -151,6 +230,32 @@ async def send_coins(ctx, receptor_id, quantity: float):
             await send_message(ctx, f"no tienes suficientos monedas", 3)
     else:
         await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
+
+
+@client.command(name="vender")
+async def sell_in_shop(ctx, price: float, name, *, description):
+    await ctx.channel.purge(limit=1)
+    if price <= 0:
+        await send_message(ctx, "el precio no puede ser negativo o 0", 2)
+
+    local_settings = settings(ctx.guild)
+
+    if not(f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys()):
+        await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
+
+    embed = discord.Embed(colour=discord.colour.Color.orange(), title=f"${price} {name}",
+                          description=f"Vendedor:{ctx.author.name}\n{description}")
+    msg = await ctx.channel.send(embed=embed)
+    local_settings["Shop"][msg.id] = {
+        "Price": price,
+        "Name": name,
+        "UserID": ctx.author.id
+    }
+
+    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+    await msg.add_reaction("🪙")
+    await msg.add_reaction("❌")
+# for buy in on_raw_reaction_add
 
 
 @client.command(name="monedas")
@@ -174,20 +279,16 @@ async def get_user_by_name(ctx, *, user):
     for key in economic_users.keys():
         if key.casefold().startswith(user.casefold()):
             user_founds += 1
-            i = 0
-
-            for ch in key:
-                if ch == "_":
-                    break
-                i = i + 1
+            key_values = key_split(key)
 
             embed.add_field(
-                name=f"{key[0:i]}",
-                value=f"ID:{key[i + 1:len(key)]}\nmonedas:{economic_users[key]['coins']}")
+                name=f"{key_values[0]}",
+                value=f"ID:{key_values[1]}\nmonedas:{economic_users[key]['coins']}")
 
     if user_founds == 0:
         user_founds += 1
         embed.add_field(name="ninguno")
+
     await ctx.channel.send(embed=embed)
     await asyncio.sleep(user_founds * 3)
     await ctx.channel.purge(limit=1)
@@ -224,15 +325,10 @@ async def init_economy(ctx):
                               description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
 
         for key in economic_users.keys():
-            i = 0
-            for ch in key:
-                if ch == "_":
-                    break
-                i = i + 1
-
+            key_values = key_split(key)
             embed.add_field(
-                name=f"{key[0:i]}",
-                value=f"ID:{key[i + 1:len(key)]}\nmonedas:{economic_users[key]['coins']}")
+                name=f"{key_values[0]}",
+                value=f"ID:{key_values[1]}\nmonedas:{economic_users[key]['coins']}")
         await currency_tb.edit(embed=embed, content="")
 
         await asyncio.sleep(5) # Esperar para generar monedas, 900=15min
@@ -251,13 +347,7 @@ async def init_economy(ctx):
         }
         bonobo_database.send_log(log_bson)
 
-        i = 0
-        for ch in rnd_user:
-            if ch == "_":
-                break
-            i = i + 1
-
-        embed = discord.Embed(description=f"se le ha asignado a {rnd_user[0:i]}",
+        embed = discord.Embed(description=f"se le ha asignado a {key_split(rnd_user)[0]}",
                               colour=discord.colour.Color.gold(), title="Nueva Moneda")
         await ctx.channel.send(embed=embed)
         # i += 1
