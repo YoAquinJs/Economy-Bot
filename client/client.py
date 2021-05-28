@@ -1,10 +1,12 @@
 import discord
 from discord.ext import commands
+from utils.utils import get_global_settings
 
 client = None
 
-def init_client(global_settings):
+def init_client():
     global client
+    global_settings = get_global_settings()
     
     intents = discord.Intents.default()
     intents.members = True
@@ -13,3 +15,8 @@ def init_client(global_settings):
                         activity=discord.Game(f"Migala Bot | {global_settings['prefix']}help"),
                         status=discord.Status.online, intents=intents)
 
+def get_client():
+    if client == None:
+        init_client()
+
+    return client

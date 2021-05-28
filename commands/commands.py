@@ -55,6 +55,7 @@ async def send_coins(ctx, receptor_id, quantity: float):
 
             tran_bson = {
                 "date": str(datetime.datetime.now(pytz.utc)),
+                "type": "transferencia",
                 "sender": author_key,
                 "receptor": receptor_key,
                 "quantity": quantity
@@ -70,63 +71,13 @@ async def send_coins(ctx, receptor_id, quantity: float):
         else:
             await send_message(ctx, f"no tienes suficientos monedas", 3)
     else:
-        await send_message(ctx, f"no estas registrado, registrate con {client.command_prefix}regi", 3)
-
+        global_settings = get_global_settings()
+        await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
 
 @client.command(name="monedas")
 async def get_coins(ctx):
     economic_users = settings(ctx.guild)["EconomicUsers"]
     await send_message(ctx, f"tienes {economic_users[f'{ctx.author.name}_{str(ctx.author.id)}']['coins']} bonobo coins", 3)
-
-
-@client.command(name="usuario")
-async def get_user_by_name(ctx, *, user):
-    await ctx.channel.purge(limit=1)
-    economic_users = settings(ctx.guild)["EconomicUsers"]
-    user_founds = 0
-
-    if user.startswith("@"):
-        user = user[1:len(user)]
-
-    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados",
-                          description=f"tabla de todos los usuarios que inician con el nombre especificado")
-
-    for key in economic_users.keys():
-        if key.casefold().startswith(user.casefold()):
-            user_founds += 1
-            i = 0
-
-            for ch in key:
-                if ch == "_":
-                    break
-                i = i + 1
-
-            embed.add_field(
-                name=f"{key[0:i]}",
-                value=f"ID:{key[i + 1:len(key)]}\nmonedas:{economic_users[key]['coins']}")
-
-    if user_founds == 0:
-        user_founds += 1
-        embed.add_field(name="ninguno")
-    await ctx.channel.send(embed=embed)
-    await asyncio.sleep(user_founds * 3)
-    await ctx.channel.purge(limit=1)
-
-
-@client.command(name="reset")
-@commands.has_permissions(administrator=True)
-async def reset_economy(ctx):
-    local_settings = settings(ctx.guild)
-    economic_users = local_settings["EconomicUsers"]
-
-    for key in economic_users.keys():
-        economic_users[key]["coins"] = 0
-
-    local_settings["EconomicUsers"] = economic_users
-    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-
-    await send_message(ctx, "economia desde 0, todos los usuarios tienen 0 monedas", 3)
-
 
 # con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
 # y se guarda un log del diccionario con los usuarios y su cantidad de monedas, estos logs deben ser extraidos del host
@@ -144,15 +95,10 @@ async def init_economy(ctx):
                               description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
 
         for key in economic_users.keys():
-            i = 0
-            for ch in key:
-                if ch == "_":
-                    break
-                i = i + 1
-
+            key_values = key_split(key)
             embed.add_field(
-                name=f"{key[0:i]}",
-                value=f"ID:{key[i + 1:len(key)]}\nmonedas:{economic_users[key]['coins']}")
+                name=f"{key_values[0]}",
+                value=f"ID:{key_values[1]}\nmonedas:{economic_users[key]['coins']}")
         await currency_tb.edit(embed=embed, content="")
 
         await asyncio.sleep(5) # Esperar para generar monedas, 900=15min
@@ -171,13 +117,7 @@ async def init_economy(ctx):
         }
         bonobo_database.send_log(log_bson)
 
-        i = 0
-        for ch in rnd_user:
-            if ch == "_":
-                break
-            i = i + 1
-
-        embed = discord.Embed(description=f"se le ha asignado a {rnd_user[0:i]}",
+        embed = discord.Embed(description=f"se le ha asignado a {key_split(rnd_user)[0]}",
                               colour=discord.colour.Color.gold(), title="Nueva Moneda")
         await ctx.channel.send(embed=embed)
         # i += 1
@@ -217,6 +157,7 @@ async def help_cmd(ctx):
     await ctx.send(embed=embed)
 
 
+
 @client.command()
 async def probar(ctx):
 
@@ -228,3 +169,71 @@ async def probar(ctx):
 
     print(client.get_user(ctx.author.id))
     print(client.get_user(609202751213404191))
+
+@client.command(name="vender")
+async def sell_in_shop(ctx, price: float, name, *, description):
+    await ctx.channel.purge(limit=1)
+    if price <= 0:
+        await send_message(ctx, "el precio no puede ser negativo o 0", 2)
+
+    local_settings = settings(ctx.guild)
+
+    if not(f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys()):
+        await send_message(ctx, f"no estas registrado, registrate con {client.command_prefix}regi", 3)
+
+    embed = discord.Embed(colour=discord.colour.Color.orange(), title=f"${price} {name}",
+                          description=f"Vendedor:{ctx.author.name}\n{description}")
+    msg = await ctx.channel.send(embed=embed)
+    local_settings["Shop"][msg.id] = {
+        "Price": price,
+        "Name": name,
+        "UserID": ctx.author.id
+    }
+
+    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+    await msg.add_reaction("🪙")
+    await msg.add_reaction("❌")
+# for buy in on_raw_reaction_add
+
+@client.command(name="usuario")
+async def get_user_by_name(ctx, *, user):
+    await ctx.channel.purge(limit=1)
+    economic_users = settings(ctx.guild)["EconomicUsers"]
+    user_founds = 0
+
+    if user.startswith("@"):
+        user = user[1:len(user)]
+
+    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados",
+                          description=f"tabla de todos los usuarios que inician con el nombre especificado")
+
+    for key in economic_users.keys():
+        if key.casefold().startswith(user.casefold()):
+            user_founds += 1
+            key_values = key_split(key)
+
+            embed.add_field(
+                name=f"{key_values[0]}",
+                value=f"ID:{key_values[1]}\nmonedas:{economic_users[key]['coins']}")
+
+    if user_founds == 0:
+        user_founds += 1
+        embed.add_field(name="ninguno")
+
+    await ctx.channel.send(embed=embed)
+    await asyncio.sleep(user_founds * 3)
+    await ctx.channel.purge(limit=1)
+
+@client.command(name="reset")
+@commands.has_permissions(administrator=True)
+async def reset_economy(ctx):
+    local_settings = settings(ctx.guild)
+    economic_users = local_settings["EconomicUsers"]
+
+    for key in economic_users.keys():
+        economic_users[key]["coins"] = 0
+
+    local_settings["EconomicUsers"] = economic_users
+    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+
+    await send_message(ctx, "economia desde 0, todos los usuarios tienen 0 monedas", 3)

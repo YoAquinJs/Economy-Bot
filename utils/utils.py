@@ -6,6 +6,17 @@ import os
 current_dir = os.path.abspath(os.path.dirname("main.py"))
 _global_settings = None
 
+# separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se pueda identificar
+# usuario o nombre)
+def key_split(key):
+    i = 0
+    for ch in key:
+        if ch == "_":
+            break
+        i = i + 1
+
+    return [key[0:i], key[i+1:len(key)]]
+
 async def send_message(message, text, time):
     await asyncio.sleep(0.5)
     await message.channel.purge(limit=1)
