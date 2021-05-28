@@ -19,7 +19,7 @@ async def ping_chek(ctx):
 @client.command(name="regis")
 async def register(ctx):
     local_settings = settings(ctx.guild)
-    if ctx.author.id in local_settings["EconomicUsers"].keys():
+    if f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys():
         await send_message(ctx, f"ya estas registrado, participa en la economia!", 3)
         return
 
@@ -86,11 +86,26 @@ async def get_coins(ctx):
 @commands.has_permissions(administrator=True)
 async def init_economy(ctx):
     await ctx.channel.purge(limit=1)
+    currency_tb = await ctx.channel.send("_")
     local_settings = settings(ctx.guild)
     economic_users = local_settings['EconomicUsers']  # lee los setings.json del server
-    currency_tb = await ctx.channel.send("_")
+
+    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
+                          description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
+
+    for key in economic_users.keys():
+        key_values = key_split(key)
+        embed.add_field(
+            name=f"{key_values[0]}",
+            value=f"ID:{key_values[1]}\nmonedas:{economic_users[key]['coins']}")
+    await currency_tb.edit(embed=embed, content="")
 
     while True:
+        await asyncio.sleep(5) # Esperar para generar monedas, 900=15min
+
+        local_settings = settings(ctx.guild)
+        economic_users = local_settings['EconomicUsers']  # lee los setings.json del server
+
         embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
                               description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
 
@@ -100,8 +115,6 @@ async def init_economy(ctx):
                 name=f"{key_values[0]}",
                 value=f"ID:{key_values[1]}\nmonedas:{economic_users[key]['coins']}")
         await currency_tb.edit(embed=embed, content="")
-
-        await asyncio.sleep(5) # Esperar para generar monedas, 900=15min
 
         # Toma un usuario al azar para darle una moneda
         rnd = randint(0, len(economic_users.keys()) - 1)
@@ -157,7 +170,6 @@ async def help_cmd(ctx):
     await ctx.send(embed=embed)
 
 
-
 @client.command()
 async def probar(ctx):
 
@@ -169,6 +181,7 @@ async def probar(ctx):
 
     print(client.get_user(ctx.author.id))
     print(client.get_user(609202751213404191))
+
 
 @client.command(name="vender")
 async def sell_in_shop(ctx, price: float, name, *, description):
@@ -194,6 +207,7 @@ async def sell_in_shop(ctx, price: float, name, *, description):
     await msg.add_reaction("🪙")
     await msg.add_reaction("❌")
 # for buy in on_raw_reaction_add
+
 
 @client.command(name="usuario")
 async def get_user_by_name(ctx, *, user):
@@ -223,6 +237,7 @@ async def get_user_by_name(ctx, *, user):
     await ctx.channel.send(embed=embed)
     await asyncio.sleep(user_founds * 3)
     await ctx.channel.purge(limit=1)
+
 
 @client.command(name="reset")
 @commands.has_permissions(administrator=True)
