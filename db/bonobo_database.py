@@ -1,4 +1,6 @@
+import re
 import pymongo
+from bson.objectid import ObjectId
 
 CLIENT_MONGO = None
 
@@ -23,3 +25,14 @@ def send_transaction(transaction):
     
     collection_db = CLIENT_MONGO.BonoboDB.transacciones
     collection_db.insert_one(transaction)
+
+def get_transaction_by_id(string_id):
+    transacciones = CLIENT_MONGO.BonoboDB.transacciones
+    data = transacciones.find_one({
+        '_id': ObjectId(string_id)
+    })
+
+    if data == None:
+        return {}
+
+    return data
