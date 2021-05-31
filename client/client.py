@@ -16,7 +16,7 @@ def init_client():
                         status=discord.Status.online, intents=intents)
 
 def get_client():
-    if client == None:
+    if client is None:
         init_client()
 
     return client

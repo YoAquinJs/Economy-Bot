@@ -3,9 +3,11 @@ import pytz
 from discord.ext import commands
 from random import randint
 
-from client.client import client
+from client.client import get_client
 from utils.utils import *
 from db import bonobo_database
+
+client = get_client()
 
 # region commands
 @client.command(name="ping")
@@ -65,19 +67,42 @@ async def send_coins(ctx, receptor_id, quantity: float):
 
             local_settings["EconomicUsers"] = economic_users
             json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-            await send_message(ctx,
-                               f"transaccion completa, quedaste con {economic_users[author_key]['coins']} monedas"
-                               , 3)
+            await ctx.author.send(f"le transferiste a el usuario {ctx.author.name}, id {ctx.author.id}, {quantity} "
+                                  f"monedas, quedaste con {economic_users[author_key]['coins']} monedas")
+            await receptor.send(f"el usuario {ctx.author.name}, id {ctx.author.id}, te ha transferido {quantity} "
+                                f"monedas")
         else:
             await send_message(ctx, f"no tienes suficientos monedas", 3)
     else:
         global_settings = get_global_settings()
         await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
 
+
 @client.command(name="monedas")
 async def get_coins(ctx):
     economic_users = settings(ctx.guild)["EconomicUsers"]
     await send_message(ctx, f"tienes {economic_users[f'{ctx.author.name}_{str(ctx.author.id)}']['coins']} bonobo coins", 3)
+
+
+@client.command(name="imprimir")
+@commands.has_permissions(administrator=True)
+async def print_coins(ctx, quantity: float, receptor_id):
+    receptor = await client.fetch_user(receptor_id)
+    local_settings = settings(ctx.guild)
+    local_settings["EconomicUsers"][f"{receptor.name}_{receptor.id}"]["coins"] += quantity
+    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+    await send_message(ctx, f"se imprimieron {quantity}, y se le asignaron a {receptor.name}, id {receptor.id}", 3)
+
+
+@client.command(name="expropiar")
+@commands.has_permissions(administrator=True)
+async def expropriate_coins(ctx, quantity: float, receptor_id):
+    receptor = await client.fetch_user(receptor_id)
+    local_settings = settings(ctx.guild)
+    local_settings["EconomicUsers"][f"{receptor.name}_{receptor.id}"]["coins"] -= quantity
+    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+    await send_message(ctx, f"se le expropiaron {quantity} monedas a {receptor.name}, id {receptor.id}", 3)
+
 
 # con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
 # y se guarda un log del diccionario con los usuarios y su cantidad de monedas, estos logs deben ser extraidos del host
@@ -184,16 +209,26 @@ async def probar(ctx):
 
 
 @client.command(name="vender")
-async def sell_in_shop(ctx, price: float, name, *, description):
-    await ctx.channel.purge(limit=1)
+async def sell_in_shop(ctx, price: float, *, info):
+    i = 0
+    for ch in info:
+        if ch == "/":
+            name = info[0:i]
+            description = info[i+1:len(info)]
+            break
+        i += 1
+
     if price <= 0:
         await send_message(ctx, "el precio no puede ser negativo o 0", 2)
+        return
 
     local_settings = settings(ctx.guild)
 
     if not(f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys()):
-        await send_message(ctx, f"no estas registrado, registrate con {client.command_prefix}regi", 3)
+        await send_message(ctx, f"no estas registrado, registrate con {client.command_prefix}regis", 3)
+        return
 
+    await ctx.channel.purge(limit=1)
     embed = discord.Embed(colour=discord.colour.Color.orange(), title=f"${price} {name}",
                           description=f"Vendedor:{ctx.author.name}\n{description}")
     msg = await ctx.channel.send(embed=embed)

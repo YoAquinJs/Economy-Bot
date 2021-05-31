@@ -6,21 +6,13 @@ import datetime
 import pytz
 
 from client.client import client
-from utils.utils import settings, server, get_global_settings
+from utils.utils import *
 from db import bonobo_database
 
 # region Events
 @client.event
 async def on_guild_join(guild):
-    print(f"added {guild.name}, id: {guild.id}")
-    new_settings = {
-            "EconomicUsers": {},
-            "Shop": {},
-        }
-    os.mkdir(f"local_settings/server_guild_{guild.id}")
-    os.mkdir(f"local_settings/server_guild_{guild.id}/EconomyLogs")
-    with open(f"local_settings/server_guild_{guild.id}/settings.json", "w") as guild_settings:
-        json.dump(new_settings, guild_settings)
+    init_server(guild)
 
 
 @client.event
@@ -55,7 +47,18 @@ async def on_raw_reaction_add(payload):
     product = shop[str(payload.message_id)]
     seller_user = await client.fetch_user(product["UserID"])
 
-    if payload.member.id != product["UserID"]:
+    if payload.member.permissions_in(channel).administrator is True:
+        if str(payload.emoji) == "❌":
+            await msg.delete()
+            del shop[str(payload.message_id)]
+            local_settings["Shop"] = shop
+            json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
+            await payload.member.send(f"has eliminado el producto {product['Name']}, del usuario {seller_user.name}, id"
+                                      f" {seller_user.id}")
+            await seller_user.send(f"tu producto {product['Name']} ah sido eliminado por el administrator "
+                                   f"{payload.member.name}, id {payload.member.id}")
+
+    elif payload.member.id != product["UserID"]:
         print(product["UserID"])
         print(payload.member.id)
         if str(payload.emoji) != "🪙":
@@ -100,4 +103,4 @@ async def on_raw_reaction_add(payload):
             del shop[str(payload.message_id)]
             local_settings["Shop"] = shop
             json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
-            await seller_user.send(f"tu producto {product['Name']} ah sido eliminado")
+            await seller_user.send(f"has eliminado tu producto {product['Name']}")
