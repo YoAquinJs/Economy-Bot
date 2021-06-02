@@ -1,4 +1,3 @@
-import os
 import json
 import shutil
 import discord
@@ -19,6 +18,12 @@ async def on_guild_join(guild):
 
 @client.event
 async def on_ready():
+    global_settings = get_global_settings()
+    bonobo_database.init_database(
+        global_settings['mongoUser'], 
+        global_settings['mongoPassword'],
+        client.guilds[0].id)
+
     print("logged as")
     print(client.user.name)
     print(client.user.id)
@@ -27,7 +32,7 @@ async def on_ready():
 
 @client.event
 async def on_command_error(ctx, error):
-    msg = "ah ocurrido un error"
+    msg = "ha ocurrido un error"
     if isinstance(error, commands.MissingRequiredArgument):
         msg = f"{msg}, faltan argumentos"
         pass

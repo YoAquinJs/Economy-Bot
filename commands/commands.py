@@ -207,13 +207,21 @@ async def help_cmd(ctx):
 async def probar(ctx):
 
     # Ver miembros
-    g = ctx.guild.members[0].guild
+    # g = ctx.guild.members[0].guild
 
-    for m in g.members:
-        print(m)
+    # for m in g.members:
+    #     print(m)
 
-    print(client.get_user(ctx.author.id))
-    print(client.get_user(609202751213404191))
+    # print(client.get_user(ctx.author.id))
+    # print(client.get_user(609202751213404191))
+
+    print('Probando bonobo database')
+    res = bonobo_database.get_balance(ctx.author.id)
+    print(res)
+
+    bonobo_database.modify_balance(ctx.author.id, 20)
+    res = bonobo_database.get_balance(ctx.author.id)
+    print(res)
 
 
 @client.command(name="vender")

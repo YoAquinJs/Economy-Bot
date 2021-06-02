@@ -1,5 +1,3 @@
-import os
-
 from events.events import *
 from db import bonobo_database
 from commands.commands import *
@@ -12,8 +10,6 @@ set_current_path()
 # region Settings
 # los settings globales aplican a todos los servidores en que se encuentre el bot (prefix, token, )
 global_settings = get_global_settings()
-
-bonobo_database.init_database(global_settings['mongoUser'], global_settings['mongoPassword'])
 
 # endregion
 try:
