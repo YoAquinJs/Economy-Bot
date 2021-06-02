@@ -1,32 +1,39 @@
-import re
 import pymongo
 from bson.objectid import ObjectId
 
-CLIENT_MONGO = None
+_mongo_client = None
 
 
 def init_database(user, password):
-    global CLIENT_MONGO
+    global _mongo_client
 
     # URL de la base de datos en Mongo Atlas
     url_db = f'mongodb+srv://{user}:{password}@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority'
-    CLIENT_MONGO = pymongo.MongoClient(url_db)
+    _mongo_client = pymongo.MongoClient(url_db)
 
 
 def send_log(log):
-    if CLIENT_MONGO == None:
+    if _mongo_client is None:
+        print('Mongo client is not initialized')
         return
-    CLIENT_MONGO.BonoboDB.logs.insert_one(log)
+
+    return _mongo_client.BonoboDB.logs.insert_one(log)
 
 
 def send_transaction(transaction):
-    if CLIENT_MONGO is None:
+    if _mongo_client is None:
+        print('Mongo client is not initialized')
         return
-    CLIENT_MONGO.BonoboDB.transacciones.insert_one(transaction)
+
+    return _mongo_client.BonoboDB.transacciones.insert_one(transaction)
 
 
 def get_transaction_by_id(string_id):
-    transacciones = CLIENT_MONGO.BonoboDB.transacciones
+    if _mongo_client is None:
+        print('Mongo client is not initialized')
+        return
+    
+    transacciones = _mongo_client.BonoboDB.transacciones
     data = transacciones.find_one({
         '_id': ObjectId(string_id)
     })
@@ -35,3 +42,11 @@ def get_transaction_by_id(string_id):
         return {}
 
     return data
+
+def close_client():
+    if _mongo_client is None:
+        print('Mongo client is not initialized')
+        return
+
+    _mongo_client.close()
+    print('Mongo Client Closed')

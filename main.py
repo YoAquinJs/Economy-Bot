@@ -16,7 +16,14 @@ global_settings = get_global_settings()
 bonobo_database.init_database(global_settings['mongoUser'], global_settings['mongoPassword'])
 
 # endregion
-client.run(global_settings["token"])
+try:
+    client.run(global_settings["token"])
+except KeyboardInterrupt:
+    client.logout()
+    client.close()
+finally:
+    bonobo_database.close_client()
+    print("Disconnected")
 
 # anaconda commands
 # cd documents\codeprojects\economy-bot\economy-bot
