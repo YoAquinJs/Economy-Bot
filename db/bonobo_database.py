@@ -53,7 +53,7 @@ def close_client():
     _mongo_client.close()
     print('Mongo Client Closed')
 
-def get_balance(user_id, guild):
+def get_balance(user_id: int, guild):
     database_name = _get_database_name(guild)
 
     collection = _mongo_client[database_name].balances
@@ -63,22 +63,20 @@ def get_balance(user_id, guild):
 
     return balance
 
-def create_balance(user_id, user_name, ammount, guild):
+def create_balance(user_id: int, user_name, balance, guild):
     database_name = _get_database_name(guild)
-    print(database_name)
 
     balance = {
         'user_id': user_id,
         'user_name': user_name,
-        'ammount': ammount
+        'balance': balance
     }
-    print(database_name)
 
     collection = _mongo_client[database_name].balances
 
     return collection.insert_one(balance)
 
-def modify_balance(user_id: int, ammount: int, guild):
+def modify_balance(user_id: int, balance: int, guild):
     database_name = _get_database_name(guild)
 
     collection = _mongo_client[database_name].balances
@@ -87,7 +85,7 @@ def modify_balance(user_id: int, ammount: int, guild):
     }
     
     new_balance = {"$set": {
-        'ammount': ammount
+        'balance': balance
         }
     }
 

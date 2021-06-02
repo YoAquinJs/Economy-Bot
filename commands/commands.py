@@ -32,72 +32,117 @@ async def register(ctx):
 
     balance = bonobo_database.get_balance(ctx.author.id, ctx.guild)
     if balance is not None:
-        await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['ammount']} monedas", 3)
+        await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['balance']} monedas", 3)
         return
 
-    bonobo_database.create_balance(ctx.author.id, ctx.author.name, 0)
+    bonobo_database.create_balance(ctx.author.id, ctx.author.name, 0, ctx.guild)
 
     await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name}, tienes 0.0 monedas", 3)
 
 
 # comando para transferir monedas de la wallet del usuario a otro usuario
 @client.command(name="transferir")
-async def send_coins(ctx, quantity: float, receptor_id: str):
-    local_settings = settings(ctx.guild)
-    economic_users = local_settings["EconomicUsers"]
-    receptor = await client.fetch_user(receptor_id)
-    receptor_key = f"{receptor.name}_{receptor_id}"
-    author_key = f"{ctx.author.name}_{ctx.author.id}"
-
+async def send_coins(ctx, quantity: float, receptor_id):
+    receptor_id = receptor_id.replace('<', "")
+    receptor_id = receptor_id.replace('@', "")
+    receptor_id = receptor_id.replace('!', "")
+    receptor_id = int(receptor_id.replace('>', ""))
+    
     if quantity <= 0:
         await send_message(ctx, f"no puedes enviar cantidades negativas o ninguna moneda", 3)
         return
 
-    if not(receptor_key in economic_users.keys()):
-        await send_message(ctx, f"{receptor_key} no es un usuario registrado", 3)
+    balance_of_sender = bonobo_database.get_balance(ctx.author.id, ctx.guild)
+    balance_of_receptor = bonobo_database.get_balance(receptor_id, ctx.guild)
+
+    if balance_of_sender is None:
+        await send_message(ctx, f"{ctx.author.name} no estas registrado", 3)
+        return
+
+    if balance_of_receptor is None:
+        await send_message(ctx, f"{receptor_id} no es un usuario registrado", 3)
         return
 
     if receptor_id == ctx.author.id:
         await send_message(ctx, "no te puedes auto transferir monedas", 3)
         return
 
-    if author_key in economic_users.keys():
-        if economic_users[author_key]["coins"] >= quantity:
-            economic_users[author_key]["coins"] -= quantity
-            economic_users[receptor_key]["coins"] += quantity
+    if balance_of_sender['balance'] < quantity:
+        await send_message(ctx, "no tienes monedas suficientes", 3)
+        return
 
-            tran_bson = {
+    # Se hace la transaccion
+    balance_of_sender['balance'] -= quantity
+    balance_of_receptor['balance'] += quantity
+
+    transacition_log = {
                 "date": get_time(),
                 "type": "transferencia",
-                "sender": author_key,
-                "receptor": receptor_key,
+                "sender": balance_of_sender['user_id'],
+                "receptor": balance_of_receptor['user_id'],
                 "quantity": quantity
             }
+    bonobo_database.send_transaction(transacition_log, ctx.guild)
 
-            bonobo_database.send_transaction(tran_bson)
+    bonobo_database.modify_balance(balance_of_receptor['user_id'], balance_of_receptor['balance'], ctx.guild)
+    bonobo_database.modify_balance(balance_of_sender['user_id'], balance_of_sender['balance'], ctx.guild)
 
-            local_settings["EconomicUsers"] = economic_users
-            json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-            await send_message(ctx, "transaccion completa", 2)
-            await ctx.author.send(f"le transferiste a el usuario {receptor.name}, id {receptor.id}, {quantity} "
-                                  f"monedas, quedaste con {economic_users[author_key]['coins']} monedas")
-            await receptor.send(f"el usuario {ctx.author.name}, id {ctx.author.id}, te ha transferido {quantity} "
-                                f"monedas, has quedado con {economic_users[receptor_key]['coins']} monedas")
-        else:
-            await send_message(ctx, f"no tienes suficientos monedas", 3)
-    else:
-        global_settings = get_global_settings()
-        await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
+    await send_message(ctx, "transaccion completa", 2)
+    await ctx.author.send(f"le transferiste a el usuario {balance_of_receptor['user_name']}, id {balance_of_receptor['user_id']}, {quantity} "
+                          f"monedas, quedaste con {balance_of_sender['balance']} monedas")
+    receptor = client.get_user(receptor_id)
+    await receptor.send(f"el usuario {ctx.author.name}, id {ctx.author.id}, te ha transferido {quantity} "
+                        f"monedas, has quedado con {balance_of_receptor['balance']} monedas")
+
+    # local_settings = settings(ctx.guild)
+    # economic_users = local_settings["EconomicUsers"]
+    # receptor = await client.fetch_user(receptor_id)
+    # receptor_key = f"{receptor.name}_{receptor_id}"
+    # author_key = f"{ctx.author.name}_{ctx.author.id}"
+
+
+    # if author_key in economic_users.keys():
+    #     if economic_users[author_key]["coins"] >= quantity:
+    #         economic_users[author_key]["coins"] -= quantity
+    #         economic_users[receptor_key]["coins"] += quantity
+
+    #         tran_bson = {
+    #             "date": get_time(),
+    #             "type": "transferencia",
+    #             "sender": author_key,
+    #             "receptor": receptor_key,
+    #             "quantity": quantity
+    #         }
+
+    #         bonobo_database.send_transaction(tran_bson)
+
+    #         local_settings["EconomicUsers"] = economic_users
+    #         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+    #         await send_message(ctx, "transaccion completa", 2)
+    #         await ctx.author.send(f"le transferiste a el usuario {receptor.name}, id {receptor.id}, {quantity} "
+    #                               f"monedas, quedaste con {economic_users[author_key]['coins']} monedas")
+    #         await receptor.send(f"el usuario {ctx.author.name}, id {ctx.author.id}, te ha transferido {quantity} "
+    #                             f"monedas, has quedado con {economic_users[receptor_key]['coins']} monedas")
+    #     else:
+    #         await send_message(ctx, f"no tienes suficientos monedas", 3)
+    # else:
+    #     global_settings = get_global_settings()
+    #     await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
 
 
 @client.command(name="monedas")
 async def get_coins(ctx):
-    economic_users = settings(ctx.guild)["EconomicUsers"]
-    if not(f"{ctx.author.name}_{ctx.author.id}" in economic_users):
-        global_settings = get_global_settings()
-        await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
+    # economic_users = settings(ctx.guild)["EconomicUsers"]
+    # if not(f"{ctx.author.name}_{ctx.author.id}" in economic_users):
+    #     global_settings = get_global_settings()
+    #     await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
 
-    await send_message(ctx, f"tienes {economic_users[f'{ctx.author.name}_{str(ctx.author.id)}']['coins']} bonobo coins "
+    balance = bonobo_database.get_balance(ctx.author.id, ctx.guild)
+    if balance is None:
+        await send_message(ctx, f"{ctx.author.name} no estas registrado, utiliza el comando {client.get_prefix()}regis", 3)
+        return
+
+    await send_message(ctx, f"tienes {balance['balance']} bonobo coins "
                             f"{ctx.author.name}", 3)
 
 
