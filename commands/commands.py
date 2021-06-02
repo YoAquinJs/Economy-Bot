@@ -18,16 +18,25 @@ async def ping_chek(ctx):
 # de monedas correspondientes que inicia en 0
 @client.command(name="regis")
 async def register(ctx):
-    local_settings = settings(ctx.guild)
-    if f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys():
-        await send_message(ctx, f"ya estas registrado, participa en la economia!", 3)
+    # Se usaba para guardar los datos en un json
+    # local_settings = settings(ctx.guild)
+    # if f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys():
+    #     await send_message(ctx, f"ya estas registrado, participa en la economia!", 3)
+    #     return
+
+    # local_settings["EconomicUsers"][f"{ctx.author.name}_{ctx.author.id}"] = {
+    #     "coins": 0.0
+    # }
+
+    # json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+
+    balance = bonobo_database.get_balance(ctx.author.id, ctx.guild)
+    if balance is not None:
+        await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['ammount']} monedas", 3)
         return
 
-    local_settings["EconomicUsers"][f"{ctx.author.name}_{ctx.author.id}"] = {
-        "coins": 0.0
-    }
+    bonobo_database.create_balance(ctx.author.id, ctx.author.name, 0)
 
-    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
     await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name}, tienes 0.0 monedas", 3)
 
 
@@ -216,11 +225,12 @@ async def probar(ctx):
     # print(client.get_user(609202751213404191))
 
     print('Probando bonobo database')
-    res = bonobo_database.get_balance(ctx.author.id)
+
+    res = bonobo_database.get_balance(ctx.author.id, ctx.guild)
     print(res)
 
-    bonobo_database.modify_balance(ctx.author.id, 20)
-    res = bonobo_database.get_balance(ctx.author.id)
+    bonobo_database.modify_balance(ctx.author.id, 30, ctx.guild)
+    res = bonobo_database.get_balance(ctx.author.id, ctx.guild)
     print(res)
 
 

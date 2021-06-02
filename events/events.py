@@ -21,8 +21,7 @@ async def on_ready():
     global_settings = get_global_settings()
     bonobo_database.init_database(
         global_settings['mongoUser'], 
-        global_settings['mongoPassword'],
-        client.guilds[0].id)
+        global_settings['mongoPassword'])
 
     print("logged as")
     print(client.user.name)
@@ -32,6 +31,7 @@ async def on_ready():
 
 @client.event
 async def on_command_error(ctx, error):
+    print(error)
     msg = "ha ocurrido un error"
     if isinstance(error, commands.MissingRequiredArgument):
         msg = f"{msg}, faltan argumentos"
