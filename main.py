@@ -1,8 +1,9 @@
 import os
-from db import bonobo_database
-from client.client import get_client
-from commands.commands import *
+
 from events.events import *
+from db import bonobo_database
+from commands.commands import *
+from client.client import get_client
 from utils.utils import get_global_settings, set_current_path
 
 client = get_client()
@@ -13,9 +14,6 @@ set_current_path()
 global_settings = get_global_settings()
 
 bonobo_database.init_database(global_settings['mongoUser'], global_settings['mongoPassword'])
-
-# region ServerGlobal
-# se aplica para todo el codigo y mas especifico cada server
 
 # endregion
 client.run(global_settings["token"])

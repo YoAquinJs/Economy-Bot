@@ -1,10 +1,16 @@
+import os
+import json
+import pytz
 import asyncio
 import discord
-import json
-import os
+import datetime
 
 current_dir = None
 _global_settings = None
+
+
+def get_time():
+    return str(datetime.datetime.now(pytz.utc))
 
 
 # separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se pueda identificar

@@ -2,12 +2,14 @@ import os
 import json
 import shutil
 import discord
-import datetime
-import pytz
+from discord.ext import commands
 
-from client.client import client
 from utils.utils import *
 from db import bonobo_database
+from client.client import get_client
+
+client = get_client()
+
 
 # region Events
 @client.event
@@ -24,9 +26,19 @@ async def on_ready():
 
 
 @client.event
-async def on_guild_remove(guild):
-    print(f"removed {guild.name}, id: {guild.id}")
-    shutil.rmtree(f"local_settings/server_guild_{guild.id}")
+async def on_command_error(ctx, error):
+    msg = "ah ocurrido un error"
+    if isinstance(error, commands.MissingRequiredArgument):
+        msg = f"{msg}, faltan argumentos"
+        pass
+    elif isinstance(error, commands.ArgumentParsingError):
+        msg = f"{msg}, un argumento no es valido"
+        pass
+    elif isinstance(error, commands.MissingRequiredArgument):
+        msg = f"{msg}, faltan argumentos"
+        pass
+
+    await send_message(ctx, msg, 3)
 
 
 @client.event
@@ -47,20 +59,16 @@ async def on_raw_reaction_add(payload):
     product = shop[str(payload.message_id)]
     seller_user = await client.fetch_user(product["UserID"])
 
-    if payload.member.permissions_in(channel).administrator is True:
-        if str(payload.emoji) == "❌":
-            await msg.delete()
-            del shop[str(payload.message_id)]
-            local_settings["Shop"] = shop
-            json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
-            await payload.member.send(f"has eliminado el producto {product['Name']}, del usuario {seller_user.name}, id"
-                                      f" {seller_user.id}")
-            await seller_user.send(f"tu producto {product['Name']} ah sido eliminado por el administrator "
-                                   f"{payload.member.name}, id {payload.member.id}")
-
+    if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌":
+        await msg.delete()
+        del shop[str(payload.message_id)]
+        local_settings["Shop"] = shop
+        json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
+        await payload.member.send(f"has eliminado el producto {product['Name']}, del usuario {seller_user.name}, id"
+                                  f" {seller_user.id}")
+        await seller_user.send(f"tu producto {product['Name']} ah sido eliminado por el administrator "
+                               f"{payload.member.name}, id {payload.member.id}")
     elif payload.member.id != product["UserID"]:
-        print(product["UserID"])
-        print(payload.member.id)
         if str(payload.emoji) != "🪙":
             return
         else:
@@ -75,7 +83,7 @@ async def on_raw_reaction_add(payload):
                     economic_users[receptor_key]["coins"] += quantity
 
                     tran_bson = {
-                        "date": str(datetime.datetime.now(pytz.utc)),
+                        "date": get_time(),
                         "type": "compra en tienda",
                         "sender": author_key,
                         "receptor": receptor_key,
@@ -104,3 +112,9 @@ async def on_raw_reaction_add(payload):
             local_settings["Shop"] = shop
             json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
             await seller_user.send(f"has eliminado tu producto {product['Name']}")
+
+
+@client.event
+async def on_guild_remove(guild):
+    print(f"removed {guild.name}, id: {guild.id}")
+    shutil.rmtree(f"local_settings/server_guild_{guild.id}")
