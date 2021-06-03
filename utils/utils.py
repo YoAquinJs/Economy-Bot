@@ -81,3 +81,12 @@ def get_global_settings():
             _global_settings = json.load(tmp)
 
     return _global_settings
+
+
+def parse_mention_id(receptor_id):
+    receptor_id = receptor_id.replace('<', "")
+    receptor_id = receptor_id.replace('@', "")
+    receptor_id = receptor_id.replace('!', "")
+    receptor_id = int(receptor_id.replace('>', ""))
+
+    return receptor_id

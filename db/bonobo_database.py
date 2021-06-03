@@ -1,4 +1,5 @@
 from os import name
+import re
 import pymongo
 from bson.objectid import ObjectId
 
@@ -105,3 +106,24 @@ def _get_database_name(guild):
             name = name[:20]
 
     return f'{name.replace(" ", "_")}_{guild.id}'
+
+def get_random_user(guild):
+    database_name = _get_database_name(guild)
+    random_user = None
+
+    collection = _mongo_client[database_name].balances
+    cursor = collection.aggregate([
+        { "$match": { "start_time": { "$exists": False } } },
+        { "$sample": { "size": 1 } }
+    ])
+    for i in cursor:
+        random_user = i
+
+    return random_user
+
+
+def get_balances_cursor(guild):
+    database_name = _get_database_name(guild)
+    collection = _mongo_client[database_name].balances
+    
+    return collection.find({})
