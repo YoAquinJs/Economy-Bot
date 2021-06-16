@@ -18,18 +18,6 @@ async def ping_chek(ctx):
 # de monedas correspondientes que inicia en 0
 @client.command(name="regis")
 async def register(ctx):
-    # Se usaba para guardar los datos en un json
-    # local_settings = settings(ctx.guild)
-    # if f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys():
-    #     await send_message(ctx, f"ya estas registrado, participa en la economia!", 3)
-    #     return
-
-    # local_settings["EconomicUsers"][f"{ctx.author.name}_{ctx.author.id}"] = {
-    #     "coins": 0.0
-    # }
-
-    # json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-
     balance = bonobo_database.get_balance(ctx.author.id, ctx.guild)
     if balance is not None:
         await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['balance']} monedas", 3)
@@ -71,69 +59,41 @@ async def send_coins(ctx, quantity: float, receptor_id):
     # Se hace la transaccion
     balance_of_sender['balance'] -= quantity
     balance_of_receptor['balance'] += quantity
+    # Se manda hace cambio de saldos en la db
+    bonobo_database.modify_balance(balance_of_receptor['user_id'], balance_of_receptor['balance'], ctx.guild)
+    bonobo_database.modify_balance(balance_of_sender['user_id'], balance_of_sender['balance'], ctx.guild)
+
+    sender = {
+        "id" : balance_of_sender['user_id'],
+        "roles": [rol.name for rol in ctx.author.roles if rol.name != "@everyone"]
+    }
+
+    fetch_receptor = ctx.guild.get_member(balance_of_receptor['user_id'])
+    receptor = {
+        "id" : balance_of_receptor['user_id'],
+        "roles": [rol.name for rol in fetch_receptor.roles if rol.name != "@everyone"]
+    }
 
     transacition_log = {
                 "date": get_time(),
                 "type": "transferencia",
-                "sender": balance_of_sender['user_id'],
-                "receptor": balance_of_receptor['user_id'],
-                "quantity": quantity
+                "sender": sender,
+                "receptor": receptor,
+                "quantity": quantity,
+                "channel_name": ctx.message.channel.name
             }
     bonobo_database.send_transaction(transacition_log, ctx.guild)
 
-    bonobo_database.modify_balance(balance_of_receptor['user_id'], balance_of_receptor['balance'], ctx.guild)
-    bonobo_database.modify_balance(balance_of_sender['user_id'], balance_of_sender['balance'], ctx.guild)
 
     await send_message(ctx, "transaccion completa", 2)
     await ctx.author.send(f"le transferiste a el usuario {balance_of_receptor['user_name']}, id {balance_of_receptor['user_id']}, {quantity} "
                           f"monedas, quedaste con {balance_of_sender['balance']} monedas")
-    receptor = client.get_user(receptor_id)
-    await receptor.send(f"el usuario {ctx.author.name}, id {ctx.author.id}, te ha transferido {quantity} "
+    await fetch_receptor.send(f"el usuario {ctx.author.name}, id {ctx.author.id}, te ha transferido {quantity} "
                         f"monedas, has quedado con {balance_of_receptor['balance']} monedas")
-
-    # local_settings = settings(ctx.guild)
-    # economic_users = local_settings["EconomicUsers"]
-    # receptor = await client.fetch_user(receptor_id)
-    # receptor_key = f"{receptor.name}_{receptor_id}"
-    # author_key = f"{ctx.author.name}_{ctx.author.id}"
-
-
-    # if author_key in economic_users.keys():
-    #     if economic_users[author_key]["coins"] >= quantity:
-    #         economic_users[author_key]["coins"] -= quantity
-    #         economic_users[receptor_key]["coins"] += quantity
-
-    #         tran_bson = {
-    #             "date": get_time(),
-    #             "type": "transferencia",
-    #             "sender": author_key,
-    #             "receptor": receptor_key,
-    #             "quantity": quantity
-    #         }
-
-    #         bonobo_database.send_transaction(tran_bson)
-
-    #         local_settings["EconomicUsers"] = economic_users
-    #         json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
-    #         await send_message(ctx, "transaccion completa", 2)
-    #         await ctx.author.send(f"le transferiste a el usuario {receptor.name}, id {receptor.id}, {quantity} "
-    #                               f"monedas, quedaste con {economic_users[author_key]['coins']} monedas")
-    #         await receptor.send(f"el usuario {ctx.author.name}, id {ctx.author.id}, te ha transferido {quantity} "
-    #                             f"monedas, has quedado con {economic_users[receptor_key]['coins']} monedas")
-    #     else:
-    #         await send_message(ctx, f"no tienes suficientos monedas", 3)
-    # else:
-    #     global_settings = get_global_settings()
-    #     await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
 
 
 @client.command(name="monedas")
 async def get_coins(ctx):
-    # economic_users = settings(ctx.guild)["EconomicUsers"]
-    # if not(f"{ctx.author.name}_{ctx.author.id}" in economic_users):
-    #     global_settings = get_global_settings()
-    #     await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}regi", 3)
-
     balance = bonobo_database.get_balance(ctx.author.id, ctx.guild)
     if balance is None:
         await send_message(ctx, f"{ctx.author.name} no estas registrado, utiliza el comando {client.get_prefix()}regis", 3)
@@ -152,10 +112,6 @@ async def print_coins(ctx, quantity: float, receptor_id: str):
     receptor['balance'] += quantity
     bonobo_database.modify_balance(receptor['user_id'], receptor['balance'], ctx.guild)
 
-    # receptor = await client.fetch_user(receptor_id)
-    # local_settings = settings(ctx.guild)
-    # local_settings["EconomicUsers"][f"{receptor.name}_{receptor.id}"]["coins"] += quantity
-    # json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
     await send_message(ctx, f"se imprimieron {quantity}, y se le asignaron a {receptor['user_name']}, id {receptor['user_id']}", 3)
 
 
@@ -173,10 +129,6 @@ async def expropriate_coins(ctx, quantity: float, receptor_id: str):
 
     bonobo_database.modify_balance(receptor['user_id'], receptor['balance'], ctx.guild)
 
-    # receptor = await client.fetch_user(receptor_id)
-    # local_settings = settings(ctx.guild)
-    # local_settings["EconomicUsers"][f"{receptor.name}_{receptor.id}"]["coins"] -= quantity
-    # json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
     await send_message(ctx, f"se le expropiaron {quantity} monedas a {receptor['user_name']}, id {receptor['user_id']}", 3)
 
 
@@ -188,8 +140,6 @@ async def expropriate_coins(ctx, quantity: float, receptor_id: str):
 async def init_economy(ctx):
     await ctx.channel.purge(limit=1)
     currency_tb = await ctx.channel.send("_")
-    # local_settings = settings(ctx.guild)
-    # economic_users = local_settings['EconomicUsers']  # lee los setings.json del server
     users = bonobo_database.get_balances_cursor(ctx.guild)
 
     embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
@@ -206,9 +156,6 @@ async def init_economy(ctx):
     while True:
         await asyncio.sleep(10) # Esperar para generar monedas, 900=15min
 
-        # local_settings = settings(ctx.guild)
-        # economic_users = local_settings['EconomicUsers']  # lee los setings.json del server
-
         embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
                               description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
 
@@ -217,23 +164,11 @@ async def init_economy(ctx):
             name=f"{user['user_name']}",
             value=f"ID:{user['user_id']}\nmonedas:{user['balance']}")
 
-        # for key in economic_users.keys():
-        #     key_values = key_split(key)
-        #     embed.add_field(
-        #         name=f"{key_values[0]}",
-        #         value=f"ID:{key_values[1]}\nmonedas:{economic_users[key]['coins']}")
         await currency_tb.edit(embed=embed, content="")
 
-        # Toma un usuario al azar para darle una moneda
-        # rnd = randint(0, len(economic_users.keys()) - 1)
-        # rnd_user = list(economic_users.keys())[rnd]
         random_user = bonobo_database.get_random_user(ctx.guild)
         random_user['balance'] += 1
         bonobo_database.modify_balance(random_user['user_id'], random_user['balance'], ctx.guild)
-        # economic_users[rnd_user]["coins"] += 1
-
-        # local_settings["EconomicUsers"] = economic_users
-        # json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
 
         log_bson = {
             "date": get_time(),
@@ -249,8 +184,6 @@ async def init_economy(ctx):
                               colour=discord.colour.Color.gold(), title="Nueva Moneda")
         await ctx.channel.send(embed=embed)
         # i += 1
-
-# endregion
 
 
 # Output the list of commands available
@@ -287,24 +220,7 @@ async def help_cmd(ctx):
 
 @client.command()
 async def probar(ctx):
-
-    # Ver miembros
-    # g = ctx.guild.members[0].guild
-
-    # for m in g.members:
-    #     print(m)
-
-    # print(client.get_user(ctx.author.id))
-    # print(client.get_user(609202751213404191))
-
-    print('Probando bonobo database')
-
-    res = bonobo_database.get_balance(ctx.author.id, ctx.guild)
-    print(res)
-
-    bonobo_database.modify_balance(ctx.author.id, 30, ctx.guild)
-    res = bonobo_database.get_balance(ctx.author.id, ctx.guild)
-    print(res)
+    pass
 
 
 @client.command(name="vender")
@@ -379,17 +295,9 @@ async def get_user_by_name(ctx, *, user: str):
 @client.command(name="reset")
 @commands.has_permissions(administrator=True)
 async def reset_economy(ctx):
-    # local_settings = settings(ctx.guild)
-    # economic_users = local_settings["EconomicUsers"]
 
     users = bonobo_database.get_balances_cursor(ctx.guild)
     for user in users:
         bonobo_database.modify_balance(user['user_id'], 0, ctx.guild)
-
-    # for key in economic_users.keys():
-    #     economic_users[key]["coins"] = 0
-
-    # local_settings["EconomicUsers"] = economic_users
-    # json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
 
     await send_message(ctx, "economia desde 0, todos los usuarios tienen 0 monedas", 3)
