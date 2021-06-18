@@ -22,6 +22,6 @@ finally:
     print("Disconnected")
 
 # anaconda commands
-# cd documents\codeprojects\economy-bot\economy-bot
+# cd documents\codeprojects\economy-bot
 # conda activate bonoboenv
 # python main.py

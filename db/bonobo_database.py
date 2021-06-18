@@ -3,6 +3,7 @@ from bson.objectid import ObjectId
 
 _mongo_client = None
 
+
 def init_database(user, password):
     global _mongo_client, _database_name
 
@@ -44,6 +45,7 @@ def get_transaction_by_id(string_id, guild):
 
     return data
 
+
 def close_client():
     if _mongo_client is None:
         print('Mongo client is not initialized')
@@ -51,6 +53,7 @@ def close_client():
 
     _mongo_client.close()
     print('Mongo Client Closed')
+
 
 def get_balance(user_id: int, guild):
     database_name = _get_database_name(guild)
@@ -61,6 +64,7 @@ def get_balance(user_id: int, guild):
     })
 
     return balance
+
 
 def create_balance(user_id: int, user_name, balance, guild):
     database_name = _get_database_name(guild)
@@ -74,6 +78,7 @@ def create_balance(user_id: int, user_name, balance, guild):
     collection = _mongo_client[database_name].balances
 
     return collection.insert_one(balance)
+
 
 def modify_balance(user_id: int, balance: int, guild):
     database_name = _get_database_name(guild)
@@ -90,6 +95,7 @@ def modify_balance(user_id: int, balance: int, guild):
 
     return collection.update_one(query, new_balance)
 
+
 def _get_database_name(guild):
     name = guild.name
     if len(name) > 20:
@@ -104,6 +110,7 @@ def _get_database_name(guild):
             name = name[:20]
 
     return f'{name.replace(" ", "_")}_{guild.id}'
+
 
 def get_random_user(guild):
     database_name = _get_database_name(guild)
@@ -144,6 +151,7 @@ def find_product(message_id, guild):
     return collection.find_one({
         'msg_id': message_id
     })
+
 
 def delete_product(message_id, guild):
     database_name = _get_database_name(guild)
