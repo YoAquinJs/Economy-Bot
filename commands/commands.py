@@ -240,9 +240,8 @@ async def sell_in_shop(ctx, price: float, *, info: str):
         await send_message(ctx, "el precio no puede ser negativo o 0", 2)
         return
 
-    local_settings = settings(ctx.guild)
-
-    if not(f"{ctx.author.name}_{ctx.author.id}" in local_settings["EconomicUsers"].keys()):
+    balance_user = bonobo_database.get_balance(ctx.author.id, ctx.guild)
+    if balance_user is None:
         await send_message(ctx, f"no estas registrado, registrate con {client.command_prefix}regis", 3)
         return
 
@@ -250,13 +249,16 @@ async def sell_in_shop(ctx, price: float, *, info: str):
     embed = discord.Embed(colour=discord.colour.Color.orange(), title=f"${price} {name}",
                           description=f"Vendedor:{ctx.author.name}\n{description}")
     msg = await ctx.channel.send(embed=embed)
-    local_settings["Shop"][msg.id] = {
+
+    product = {
+        "msg_id": msg.id,
         "Price": price,
         "Name": name,
         "UserID": ctx.author.id
     }
 
-    json.dump(local_settings, open(f"{server(ctx.guild)}/settings.json", "w"))
+    bonobo_database.save_product(product, ctx.guild)
+
     await msg.add_reaction("🪙")
     await msg.add_reaction("❌")
 # for buy in on_raw_reaction_add

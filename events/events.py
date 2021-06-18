@@ -48,58 +48,60 @@ async def on_command_error(ctx, error):
 
 @client.event
 async def on_raw_reaction_add(payload):
+    if payload.member.bot:
+        return
+
     guild = client.get_guild(payload.guild_id)
-    local_settings = settings(guild)
-    shop = local_settings["Shop"]
     channel = discord.utils.get(client.get_guild(payload.guild_id).channels, id=payload.channel_id)
     msg = await channel.fetch_message(payload.message_id)
 
-    if not(str(payload.message_id) in shop.keys()) or payload.member.bot:
-        if not payload.member.bot and str(payload.message_id) in list(shop.keys()):
-            await msg.remove_reaction(payload.emoji, payload.member)
-        return
+    product = bonobo_database.find_product(payload.message_id, guild)
 
     await msg.remove_reaction(payload.emoji, payload.member)
 
-    product = shop[str(payload.message_id)]
     seller_user = await client.fetch_user(product["UserID"])
 
     if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌":
         await msg.delete()
-        del shop[str(payload.message_id)]
-        local_settings["Shop"] = shop
-        json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
+
+        bonobo_database.delete_product(payload.message_id, guild)
+
         await payload.member.send(f"has eliminado el producto {product['Name']}, del usuario {seller_user.name}, id"
                                   f" {seller_user.id}")
         await seller_user.send(f"tu producto {product['Name']} ah sido eliminado por el administrator "
                                f"{payload.member.name}, id {payload.member.id}")
+
     elif payload.member.id != product["UserID"]:
         if str(payload.emoji) != "🪙":
             return
         else:
             quantity = product["Price"]
-            economic_users = local_settings["EconomicUsers"]
-            receptor_key = f"{seller_user.name}_{seller_user.id}"
-            author_key = f"{payload.member.name}_{payload.member.id}"
+            buyer_balance = bonobo_database.get_balance(payload.member.id, guild)
+            seller_balance = bonobo_database.get_balance(seller_user.id, guild)
 
-            if author_key in economic_users.keys():
-                if economic_users[author_key]["coins"] >= quantity:
-                    economic_users[author_key]["coins"] -= quantity
-                    economic_users[receptor_key]["coins"] += quantity
+            # Si el comprador esta registrado
+            if buyer_balance != None:
+                # Si el comprador tiene suficientes monedas
+                if buyer_balance['balance'] >= quantity:
+                # if economic_users[author_key]["coins"] >= quantity:
 
-                    tran_bson = {
+                    buyer_balance['balance'] -= quantity
+                    bonobo_database.modify_balance(buyer_balance['user_id'], buyer_balance['balance'], guild)
+
+                    seller_balance['balance'] += quantity
+                    bonobo_database.modify_balance(seller_balance['user_id'], seller_balance['balance'], guild)
+
+                    sale = {
                         "date": get_time(),
                         "type": "compra en tienda",
-                        "sender": author_key,
-                        "receptor": receptor_key,
+                        "buyer": buyer_balance['user_id'],
+                        "seller": seller_balance['user_id'],
                         "quantity": quantity,
                         "product": product["Name"]
                     }
 
-                    bonobo_database.send_transaction(tran_bson)
+                    bonobo_database.new_sale(sale, guild)
 
-                    local_settings["EconomicUsers"] = economic_users
-                    json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
                     await payload.member.send(f"has adquirido el producto:{product['Name']}, del usuario:"
                                               f"{seller_user.name}; id:{seller_user.id}")
                     await seller_user.send(f"el usuario:{payload.member.name}; id:{payload.member.id} ah adquirido tu "
@@ -113,9 +115,9 @@ async def on_raw_reaction_add(payload):
     else:
         if str(payload.emoji) == "❌":
             await msg.delete()
-            del shop[str(payload.message_id)]
-            local_settings["Shop"] = shop
-            json.dump(local_settings, open(f"{server(guild)}/settings.json", "w"))
+
+            bonobo_database.delete_product(payload.message_id, guild)
+
             await seller_user.send(f"has eliminado tu producto {product['Name']}")
 
 

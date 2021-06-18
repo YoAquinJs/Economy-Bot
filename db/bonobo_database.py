@@ -1,5 +1,3 @@
-from os import name
-import re
 import pymongo
 from bson.objectid import ObjectId
 
@@ -127,3 +125,39 @@ def get_balances_cursor(guild):
     collection = _mongo_client[database_name].balances
     
     return collection.find({})
+
+
+def save_product(product, guild):
+    database_name = _get_database_name(guild)
+    collection = _mongo_client[database_name].shop
+
+    return collection.insert_one(product)
+
+
+# Esta funcion busca un producto en la base datos
+# En caso de no encontrarlo regresa None
+# Recibe el id del mensaje con el que el producto fue registrado
+def find_product(message_id, guild):
+    database_name = _get_database_name(guild)
+    collection = _mongo_client[database_name].shop
+
+    return collection.find_one({
+        'msg_id': message_id
+    })
+
+def delete_product(message_id, guild):
+    database_name = _get_database_name(guild)
+    collection = _mongo_client[database_name].shop
+
+    return collection.delete_one({
+        'msg_id': message_id
+    })
+
+
+def new_sale(sale, guild):
+    database_name = _get_database_name(guild)
+    if _mongo_client is None:
+        print('Mongo client is not initialized')
+        return
+
+    return _mongo_client[database_name].sales.insert_one(sale)
