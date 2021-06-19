@@ -25,22 +25,26 @@ def key_split(key):
     return [key[0:i], key[i+1:len(key)]]
 
 
-async def send_message(message, text, time):
-    await asyncio.sleep(0.5)
-    await message.channel.purge(limit=1)
-    msg = discord.Embed(description=text, colour=discord.colour.Color.gold())
-    d_msg = await message.channel.send(embed=msg)
-    await asyncio.sleep(time)
-    await message.channel.purge(limit=1)
-    return d_msg
+async def send_message(ctx, text, timer=False):
+    msg_txt = discord.Embed(
+        description=text, colour=discord.colour.Color.gold())
+    if timer is False:
+        await ctx.channel.send(embed=msg_txt)
+    else:
+        await ctx.channel.purge(limit=1)
+        msg = await ctx.channel.send(embed=msg_txt)
+        wpm = 180  # velocidad de lectura persona promedio
+        time = (len(text) / len(text.split()))/wpm * 60 + 1
+        await asyncio.sleep(time)
+        await msg.delete()
 
 
 def init_server(guild):
     print(f"added {guild.name}, id: {guild.id}")
     new_settings = {
-            "EconomicUsers": {},
-            "Shop": {},
-        }
+        "EconomicUsers": {},
+        "Shop": {},
+    }
     os.mkdir(f"local_settings/server_guild_{guild.id}")
     os.mkdir(f"local_settings/server_guild_{guild.id}/EconomyLogs")
     with open(f"local_settings/server_guild_{guild.id}/settings.json", "w") as guild_settings:
@@ -75,7 +79,7 @@ def set_current_path():
 
 def get_global_settings():
     global _global_settings
-    
+
     if _global_settings is None:
         with open("settings.json", "r") as tmp:
             _global_settings = json.load(tmp)

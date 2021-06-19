@@ -3,6 +3,7 @@ from db.bonobo_database import get_mongo_client, get_database_name
 
 _mongo_client = get_mongo_client()
 
+
 def get_balance(user_id: int, guild: discord.Guild):
     database_name = get_database_name(guild)
 
@@ -35,10 +36,10 @@ def modify_balance(user_id: int, balance: int, guild: discord.Guild):
     query = {
         'user_id': user_id
     }
-    
+
     new_balance = {"$set": {
         'balance': balance
-        }
+    }
     }
 
     return collection.update_one(query, new_balance)
@@ -47,7 +48,5 @@ def modify_balance(user_id: int, balance: int, guild: discord.Guild):
 def get_balances_cursor(guild: discord.Guild):
     database_name = get_database_name(guild)
     collection = _mongo_client[database_name].balances
-    
+
     return collection.find({})
-
-

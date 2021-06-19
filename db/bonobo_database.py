@@ -12,9 +12,8 @@ def get_mongo_client() -> pymongo.MongoClient:
     if _mongo_client == None:
         global_settings = get_global_settings()
         init_database(
-            global_settings['mongoUser'], 
+            global_settings['mongoUser'],
             global_settings['mongoPassword'])
-        
 
     return _mongo_client
 

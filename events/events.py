@@ -23,21 +23,21 @@ async def on_ready():
     print('-----------')
 
 
-@client.event
-async def on_command_error(ctx, error):
-    print(error)
-    msg = "ha ocurrido un error"
-    if isinstance(error, commands.MissingRequiredArgument):
-        msg = f"{msg}, faltan argumentos"
-        pass
-    elif isinstance(error, commands.ArgumentParsingError):
-        msg = f"{msg}, un argumento no es valido"
-        pass
-    elif isinstance(error, commands.MissingRequiredArgument):
-        msg = f"{msg}, faltan argumentos"
-        pass
-
-    await send_message(ctx, msg, 3)
+# @client.event
+# async def on_command_error(ctx, error):
+#     print(error)
+#     msg = "ha ocurrido un error"
+#     if isinstance(error, commands.MissingRequiredArgument):
+#         msg = f"{msg}, faltan argumentos"
+#         pass
+#     elif isinstance(error, commands.ArgumentParsingError):
+#         msg = f"{msg}, un argumento no es valido"
+#         pass
+#     elif isinstance(error, commands.MissingRequiredArgument):
+#         msg = f"{msg}, faltan argumentos"
+#         pass
+#
+#     await send_message(ctx, msg)
 
 
 @client.event

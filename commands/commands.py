@@ -12,7 +12,7 @@ client = get_client()
 
 @client.command(name="ping")
 async def ping_chek(ctx):
-    await send_message(ctx, f"latencia: {round(client.latency * 1000)}ms", 2)
+    await send_message(ctx, f"latencia: {round(client.latency * 1000)}ms")
 
 
 # region Economics
@@ -22,12 +22,12 @@ async def ping_chek(ctx):
 async def register(ctx):
     balance = balances_db.get_balance(ctx.author.id, ctx.guild)
     if balance is not None:
-        await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['balance']} monedas", 3)
+        await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['balance']} monedas")
         return
 
     balances_db.create_balance(ctx.author.id, ctx.author.name, 0, ctx.guild)
 
-    await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name}, tienes 0.0 monedas", 3)
+    await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name}, tienes 0.0 monedas")
 
 
 # comando para transferir monedas de la wallet del usuario a otro usuario
@@ -36,26 +36,26 @@ async def send_coins(ctx, quantity: float, receptor_id):
     receptor_id = parse_mention_id(receptor_id)
 
     if quantity <= 0:
-        await send_message(ctx, f"no puedes enviar cantidades negativas o ninguna moneda", 3)
+        await send_message(ctx, f"no puedes enviar cantidades negativas o ninguna moneda")
         return
 
     balance_of_sender = balances_db.get_balance(ctx.author.id, ctx.guild)
     balance_of_receptor = balances_db.get_balance(receptor_id, ctx.guild)
 
     if balance_of_sender is None:
-        await send_message(ctx, f"{ctx.author.name} no estas registrado", 3)
+        await send_message(ctx, f"{ctx.author.name} no estas registrado")
         return
 
     if balance_of_receptor is None:
-        await send_message(ctx, f"{receptor_id} no es un usuario registrado", 3)
+        await send_message(ctx, f"{receptor_id} no es un usuario registrado")
         return
 
     if receptor_id == ctx.author.id:
-        await send_message(ctx, "no te puedes auto transferir monedas", 3)
+        await send_message(ctx, "no te puedes auto transferir monedas")
         return
 
     if balance_of_sender['balance'] < quantity:
-        await send_message(ctx, "no tienes monedas suficientes", 3)
+        await send_message(ctx, "no tienes monedas suficientes")
         return
 
     # Se hace la transaccion
@@ -99,11 +99,10 @@ async def send_coins(ctx, quantity: float, receptor_id):
 async def get_coins(ctx):
     balance = balances_db.get_balance(ctx.author.id, ctx.guild)
     if balance is None:
-        await send_message(ctx, f"{ctx.author.name} no estas registrado, utiliza el comando {client.get_prefix()}regis", 3)
+        await send_message(ctx, f"{ctx.author.name} no estas registrado, utiliza el comando {client.get_prefix()}regis")
         return
 
-    await send_message(ctx, f"tienes {balance['balance']} bonobo coins "
-                            f"{ctx.author.name}", 3)
+    await send_message(ctx, f"tienes {balance['balance']} bonobo coins {ctx.author.name}")
 
 
 @client.command(name="imprimir")
@@ -116,7 +115,7 @@ async def print_coins(ctx, quantity: float, receptor_id: str):
     balances_db.modify_balance(
         receptor['user_id'], receptor['balance'], ctx.guild)
 
-    await send_message(ctx, f"se imprimieron {quantity}, y se le asignaron a {receptor['user_name']}, id {receptor['user_id']}", 3)
+    await send_message(ctx, f"se imprimieron {quantity}, y se le asignaron a {receptor['user_name']}, id {receptor['user_id']}")
 
 
 @client.command(name="expropiar")
@@ -134,7 +133,7 @@ async def expropriate_coins(ctx, quantity: float, receptor_id: str):
     balances_db.modify_balance(
         receptor['user_id'], receptor['balance'], ctx.guild)
 
-    await send_message(ctx, f"se le expropiaron {quantity} monedas a {receptor['user_name']}, id {receptor['user_id']}", 3)
+    await send_message(ctx, f"se le expropiaron {quantity} monedas a {receptor['user_name']}, id {receptor['user_id']}")
 
 
 # con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
@@ -231,7 +230,7 @@ async def probar(ctx):
 @client.command(name="vender")
 async def sell_in_shop(ctx, price: float, *, info: str):
     if len(info) == 0:
-        await send_message(ctx, "tienes que ingresar un nombre", 3)
+        await send_message(ctx, "tienes que ingresar un nombre")
         return
     i = 0
     for ch in info:
@@ -242,12 +241,12 @@ async def sell_in_shop(ctx, price: float, *, info: str):
         i += 1
 
     if price <= 0:
-        await send_message(ctx, "el precio no puede ser negativo o 0", 2)
+        await send_message(ctx, "el precio no puede ser negativo o 0")
         return
 
     balance_user = balances_db.get_balance(ctx.author.id, ctx.guild)
     if balance_user is None:
-        await send_message(ctx, f"no estas registrado, registrate con {client.command_prefix}regis", 3)
+        await send_message(ctx, f"no estas registrado, registrate con {client.command_prefix}regis")
         return
 
     await ctx.channel.purge(limit=1)
@@ -307,4 +306,4 @@ async def reset_economy(ctx):
     for user in users:
         balances_db.modify_balance(user['user_id'], 0, ctx.guild)
 
-    await send_message(ctx, "economia desde 0, todos los usuarios tienen 0 monedas", 3)
+    await send_message(ctx, "economia desde 0, todos los usuarios tienen 0 monedas")

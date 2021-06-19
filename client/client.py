@@ -8,13 +8,14 @@ client = None
 def init_client():
     global client
     global_settings = get_global_settings()
-    
+
     intents = discord.Intents.default()
     intents.members = True
 
     client = commands.Bot(command_prefix=global_settings["prefix"], help_command=None,
-                        activity=discord.Game(f"Migala Bot | {global_settings['prefix']}help"),
-                        status=discord.Status.online, intents=intents)
+                          activity=discord.Game(
+                              f"Migala Bot | {global_settings['prefix']}help"),
+                          status=discord.Status.online, intents=intents)
 
 
 def get_client():
