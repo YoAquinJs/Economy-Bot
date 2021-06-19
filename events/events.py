@@ -1,6 +1,5 @@
 import shutil
 import discord
-from discord.ext import commands
 
 from utils.utils import *
 from db import balances_db, shop_db
@@ -11,7 +10,7 @@ client = get_client()
 
 # region Events
 @client.event
-async def on_guild_join(guild):
+async def on_guild_join(guild: discord.Guild):
     init_server(guild)
 
 
@@ -41,7 +40,7 @@ async def on_ready():
 
 
 @client.event
-async def on_raw_reaction_add(payload):
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.member.bot:
         return
 
@@ -119,6 +118,6 @@ async def on_raw_reaction_add(payload):
 
 
 @client.event
-async def on_guild_remove(guild):
+async def on_guild_remove(guild: discord.Guild):
     print(f"removed {guild.name}, id: {guild.id}")
     shutil.rmtree(f"local_settings/server_guild_{guild.id}")

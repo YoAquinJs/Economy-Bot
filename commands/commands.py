@@ -1,4 +1,4 @@
-from random import randint, random
+from discord.ext.commands import Context
 from discord.ext import commands
 
 from utils.utils import *
@@ -11,7 +11,7 @@ client = get_client()
 
 
 @client.command(name="ping")
-async def ping_chek(ctx):
+async def ping_chek(ctx: Context):
     await send_message(ctx, f"latencia: {round(client.latency * 1000)}ms")
 
 
@@ -19,7 +19,7 @@ async def ping_chek(ctx):
 # comando para que un usuario se registre, en este se añade un nuevo elemento al diccionario de usuarios y su cantidad
 # de monedas correspondientes que inicia en 0
 @client.command(name="regis")
-async def register(ctx):
+async def register(ctx: Context):
     balance = balances_db.get_balance(ctx.author.id, ctx.guild)
     if balance is not None:
         await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['balance']} monedas")
@@ -32,7 +32,7 @@ async def register(ctx):
 
 # comando para transferir monedas de la wallet del usuario a otro usuario
 @client.command(name="transferir")
-async def send_coins(ctx, quantity: float, receptor_id):
+async def send_coins(ctx: Context, quantity: float, receptor_id):
     receptor_id = parse_mention_id(receptor_id)
 
     if quantity <= 0:
@@ -96,7 +96,7 @@ async def send_coins(ctx, quantity: float, receptor_id):
 
 
 @client.command(name="monedas")
-async def get_coins(ctx):
+async def get_coins(ctx: Context):
     balance = balances_db.get_balance(ctx.author.id, ctx.guild)
     if balance is None:
         await send_message(ctx, f"{ctx.author.name} no estas registrado, utiliza el comando {client.get_prefix()}regis")
@@ -107,7 +107,7 @@ async def get_coins(ctx):
 
 @client.command(name="imprimir")
 @commands.has_permissions(administrator=True)
-async def print_coins(ctx, quantity: float, receptor_id: str):
+async def print_coins(ctx: Context, quantity: float, receptor_id: str):
     receptor_id = parse_mention_id(receptor_id)
 
     receptor = balances_db.get_balance(receptor_id, ctx.guild)
@@ -120,7 +120,7 @@ async def print_coins(ctx, quantity: float, receptor_id: str):
 
 @client.command(name="expropiar")
 @commands.has_permissions(administrator=True)
-async def expropriate_coins(ctx, quantity: float, receptor_id: str):
+async def expropriate_coins(ctx: Context, quantity: float, receptor_id: str):
     receptor_id = parse_mention_id(receptor_id)
 
     receptor = balances_db.get_balance(receptor_id, ctx.guild)
@@ -141,7 +141,7 @@ async def expropriate_coins(ctx, quantity: float, receptor_id: str):
 # para poder realizar las estadisticas del experimento
 @client.command(name="init")
 @commands.has_permissions(administrator=True)
-async def init_economy(ctx):
+async def init_economy(ctx: Context):
     await ctx.channel.purge(limit=1)
     currency_tb = await ctx.channel.send("_")
     users = balances_db.get_balances_cursor(ctx.guild)
@@ -192,7 +192,7 @@ async def init_economy(ctx):
 
 # Output the list of commands available
 @client.command(name="help")
-async def help_cmd(ctx):
+async def help_cmd(ctx: Context):
     embed = discord.Embed(title=f"Ayuda | MIGALA MONEDAS BOT {client.command_prefix}help",
                           colour=discord.colour.Color.orange())
 
@@ -223,12 +223,12 @@ async def help_cmd(ctx):
 
 
 @client.command()
-async def probar(ctx):
+async def probar(ctx: Context):
     pass
 
 
 @client.command(name="vender")
-async def sell_in_shop(ctx, price: float, *, info: str):
+async def sell_in_shop(ctx: Context, price: float, *, info: str):
     if len(info) == 0:
         await send_message(ctx, "tienes que ingresar un nombre")
         return
@@ -269,7 +269,7 @@ async def sell_in_shop(ctx, price: float, *, info: str):
 
 
 @client.command(name="usuario")
-async def get_user_by_name(ctx, *, user: str):
+async def get_user_by_name(ctx: Context, *, user: str):
     await ctx.channel.purge(limit=1)
     economic_users = settings(ctx.guild)["EconomicUsers"]
     user_founds = 0
@@ -300,7 +300,7 @@ async def get_user_by_name(ctx, *, user: str):
 
 @client.command(name="reset")
 @commands.has_permissions(administrator=True)
-async def reset_economy(ctx):
+async def reset_economy(ctx: Context):
 
     users = balances_db.get_balances_cursor(ctx.guild)
     for user in users:
