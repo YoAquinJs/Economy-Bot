@@ -1,3 +1,5 @@
+"""Contiene multiples metodos los cuales son utilizados por otros modulos, principalmente commands.py, events.py y core.py"""
+
 import os
 import json
 import pytz
@@ -9,13 +11,22 @@ current_dir = None
 _global_settings = None
 
 
+
 def get_time():
+    """Retorna el tiempo y hora actual en UTC
+
+    Returns:
+        srt: String Del Tiempo Actual
+    """
+
     return str(datetime.datetime.now(pytz.utc))
 
 
-# separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se pueda identificar
-# usuario o nombre)
 def key_split(key):
+    """Separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se pueda identificar
+       usuario o nombre)
+    """
+
     i = 0
     for ch in key:
         if ch == "_":
@@ -26,6 +37,13 @@ def key_split(key):
 
 
 async def send_message(ctx, text, timer=False):
+    """Envía un mensaje, convirtiendo el texto en un embed de discord
+
+    Args:
+        ctx (discord.ext.commands.Context): Context de discord
+        text (str): Contenido del mensaje
+        timer (bool, optional): Especifica si el mensaje va a ser persistente o va a desaparecer despues de ser leído. Defaults to False.
+    """
     msg_txt = discord.Embed(
         description=text, colour=discord.colour.Color.gold())
     if timer is False:
@@ -77,7 +95,13 @@ def set_current_path():
         os.mkdir("local_settings")
 
 
-def get_global_settings():
+def get_global_settings() -> dict:
+    """Lee y parsea los settings.json a un diccionario de python
+
+    Returns:
+        dict: diccionario con los settings.json
+    """
+
     global _global_settings
 
     if _global_settings is None:
@@ -87,7 +111,17 @@ def get_global_settings():
     return _global_settings
 
 
-def parse_mention_id(receptor_id):
+def parse_mention_id(receptor_id) -> int:
+    """En discord las menciones en mensajes vienen en un formato de string
+    Esta función se encarga de parsear ese id_string en un int.
+
+    Args:
+        receptor_id (string): Mención en id_string
+
+    Returns:
+        int: id del usuario mencionado
+    """
+
     receptor_id = receptor_id.replace('<', "")
     receptor_id = receptor_id.replace('@', "")
     receptor_id = receptor_id.replace('!', "")

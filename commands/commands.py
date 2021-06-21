@@ -1,3 +1,5 @@
+"""Registra todos los comandos del bot"""
+
 from discord.ext.commands import Context
 from discord.ext import commands
 
@@ -12,6 +14,11 @@ client = get_client()
 
 @client.command(name="ping")
 async def ping_chek(ctx: Context):
+    """Envia un mensaje con el ping del bot
+
+    Args:
+        ctx (Context): Context de discord
+    """
     await send_message(ctx, f"latencia: {round(client.latency * 1000)}ms")
 
 
@@ -20,6 +27,13 @@ async def ping_chek(ctx: Context):
 # de monedas correspondientes que inicia en 0
 @client.command(name="regis")
 async def register(ctx: Context):
+    """ Comando para que un usuario se registre, en este se añade un nuevo documento a la base de datos de balances de usuarios y su cantidad
+        de monedas correspondientes que inicia en 0
+
+    Args:
+        ctx (Context): Context de discord
+    """
+
     balance = balances_db.get_balance(ctx.author.id, ctx.guild)
     if balance is not None:
         await send_message(ctx, f"{ctx.author.name} ya estas registrado, tienes {balance['balance']} monedas")
@@ -30,9 +44,16 @@ async def register(ctx: Context):
     await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name}, tienes 0.0 monedas")
 
 
-# comando para transferir monedas de la wallet del usuario a otro usuario
 @client.command(name="transferir")
-async def send_coins(ctx: Context, quantity: float, receptor_id):
+async def send_coins(ctx: Context, quantity: float, receptor_id: str):
+    """Comando para transferir monedas de la wallet del usuario a otro usuario
+
+    Args:
+        ctx (Context): Context de discord
+        quantity (float): Cantidad a transferir
+        receptor_id (str): Mención a un usuario de discord
+    """
+
     receptor_id = parse_mention_id(receptor_id)
 
     if quantity <= 0:
@@ -97,6 +118,12 @@ async def send_coins(ctx: Context, quantity: float, receptor_id):
 
 @client.command(name="monedas")
 async def get_coins(ctx: Context):
+    """Comando para solicitar un mensaje con la cantidad de monedas que el usuario tiene.
+
+    Args:
+        ctx (Context): Context de discord
+    """
+
     balance = balances_db.get_balance(ctx.author.id, ctx.guild)
     if balance is None:
         await send_message(ctx, f"{ctx.author.name} no estas registrado, utiliza el comando {client.get_prefix()}regis")
@@ -108,6 +135,14 @@ async def get_coins(ctx: Context):
 @client.command(name="imprimir")
 @commands.has_permissions(administrator=True)
 async def print_coins(ctx: Context, quantity: float, receptor_id: str):
+    """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
+
+    Args:
+        ctx (Context): Context de Discord
+        quantity (float): Cantidad de monedas a imprimir
+        receptor_id (str): Mención al usuario receptor de las monedas
+    """
+
     receptor_id = parse_mention_id(receptor_id)
 
     receptor = balances_db.get_balance(receptor_id, ctx.guild)
@@ -121,6 +156,14 @@ async def print_coins(ctx: Context, quantity: float, receptor_id: str):
 @client.command(name="expropiar")
 @commands.has_permissions(administrator=True)
 async def expropriate_coins(ctx: Context, quantity: float, receptor_id: str):
+    """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
+
+    Args:
+        ctx (Context): Context de discord
+        quantity (float): Cantidad que se le va a quitar a usuario
+        receptor_id (str): Mención al usuario que se le van a quitar monedas
+    """
+
     receptor_id = parse_mention_id(receptor_id)
 
     receptor = balances_db.get_balance(receptor_id, ctx.guild)
@@ -136,12 +179,16 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor_id: str):
     await send_message(ctx, f"se le expropiaron {quantity} monedas a {receptor['user_name']}, id {receptor['user_id']}")
 
 
-# con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
-# y se guarda un log del diccionario con los usuarios y su cantidad de monedas, estos logs deben ser extraidos del host
-# para poder realizar las estadisticas del experimento
 @client.command(name="init")
 @commands.has_permissions(administrator=True)
 async def init_economy(ctx: Context):
+    """Con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario random
+       y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos, estos logs deben ser extraidos del host
+       para poder realizar las estadisticas del experimento
+    Args:
+        ctx (Context): Context de Discord
+    """
+    
     await ctx.channel.purge(limit=1)
     currency_tb = await ctx.channel.send("_")
     users = balances_db.get_balances_cursor(ctx.guild)
@@ -190,9 +237,13 @@ async def init_economy(ctx: Context):
         # i += 1
 
 
-# Output the list of commands available
 @client.command(name="help")
 async def help_cmd(ctx: Context):
+    """Output the list of commands available, Manda un mensaje con la información de los comandos del bot 
+
+    Args:
+        ctx (Context): Context de Discord
+    """
     embed = discord.Embed(title=f"Ayuda | MIGALA MONEDAS BOT {client.command_prefix}help",
                           colour=discord.colour.Color.orange())
 
@@ -229,6 +280,15 @@ async def probar(ctx: Context):
 
 @client.command(name="vender")
 async def sell_in_shop(ctx: Context, price: float, *, info: str):
+    """Comando para poner un producto en la tienda,
+        !vender [price: float] [Título/Descripción: str]
+
+    Args:
+        ctx (Context): Context de Discord
+        price (float): Precio del producto
+        info (str): Título/Descripción del producto
+    """
+
     if len(info) == 0:
         await send_message(ctx, "tienes que ingresar un nombre")
         return
@@ -301,6 +361,11 @@ async def get_user_by_name(ctx: Context, *, user: str):
 @client.command(name="reset")
 @commands.has_permissions(administrator=True)
 async def reset_economy(ctx: Context):
+    """Pone las monedas de todos los usuarios en 0, Requiere permisos de administrador
+
+    Args:
+        ctx (Context): Context de Discord
+    """ 
 
     users = balances_db.get_balances_cursor(ctx.guild)
     for user in users:

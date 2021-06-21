@@ -1,3 +1,5 @@
+"""Discord Events"""
+
 import shutil
 import discord
 
@@ -16,6 +18,8 @@ async def on_guild_join(guild: discord.Guild):
 
 @client.event
 async def on_ready():
+    """Imprime información del cliente cuando el bot ya está en línea
+    """
     print("logged as")
     print(client.user.name)
     print(client.user.id)
@@ -41,6 +45,11 @@ async def on_ready():
 
 @client.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    """Este evento sirve para controlar el sistema de la tienda del bot a través de reacciones.
+
+    Args:
+        payload (discord.RawReactionActionEvent): Es el payload de la reacción
+    """
     if payload.member.bot:
         return
 
