@@ -15,3 +15,4 @@ prueba_mongo.py
 /local_settings
 
 settings.json
+__pycache__
