@@ -1,13 +1,12 @@
-from bot.discord_client.discord_client import *
-from bot.bot_utils import get_global_settings
-from database.mongo_client import init_database, close_client
+from bot import bot_utils, discord_client, commands, events
+from core import economy_management, store, transactions, user
+from database import mongo_client, db_utils
 
-init_client()
-client = get_client()
+client = discord_client.get_client()
 
 # los settings globales aplican a todos los servidores en que se encuentre el bot (prefix, token, )
-global_settings = get_global_settings()
-init_database()
+global_settings = bot_utils.get_global_settings()
+mongo_client.init_database()
 print("data base initialized")
 
 try:
@@ -16,7 +15,7 @@ except KeyboardInterrupt:
     client.logout()
     client.close()
 finally:
-    close_client()
+    mongo_client.close_client()
     print("Disconnected")
 
 # anaconda commands

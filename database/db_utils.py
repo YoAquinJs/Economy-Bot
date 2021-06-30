@@ -10,7 +10,9 @@ _mongo_client = get_mongo_client()
 
 
 class Collection(Enum):
+    bugs = "bugs"
     shop = "shop"
+    forge = "forge"
     balances = "balances"
     transactions = "transactions"
 
@@ -49,7 +51,7 @@ def modify(key: str, value, modify_key: str, modify_value, guild: discord.Guild,
 
     database_name = get_database_name(guild)
 
-    return _mongo_client[database_name][collection].update_one({key: value}, {"$set": {modify_key: modify_key}})
+    return _mongo_client[database_name][collection].update_one({key: value}, {"$set": {modify_key: modify_value}})
 
 
 def delete(key: str, value, guild: discord.Guild, collection: str):
@@ -168,26 +170,26 @@ def get_database_name(guild: discord.Guild) -> str:
     return f'{name.replace(" ", "_")}_{guild.id}'
 
 
-# TODO fix rnd user
-def get_random_user(guild: discord.Guild):
-    """Obtiene un usuario al azar perteneciente a la guild
+def query_rnd(guild: discord.Guild, collection: str):
+    """Obtiene un archivo aleatorio en la base de datos de Mongo
 
         Args:
                 guild (discord.Guild): Es la información de una Guild de discord
+                collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
-                dict: Diccionario con el usuario
+                dict: Es un diccionario con la informacion del archivo
     """
 
     database_name = get_database_name(guild)
-    random_user = None
 
-    collection = _mongo_client[database_name].balances
-    cursor = collection.aggregate([
+    cursor = _mongo_client[database_name][collection].aggregate([
         {"$match": {"start_time": {"$exists": False}}},
         {"$sample": {"size": 1}}
     ])
-    for i in cursor:
-        random_user = i
 
-    return random_user
+    rnd = None
+    for i in cursor:
+        rnd = i
+
+    return rnd

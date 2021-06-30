@@ -1,9 +1,10 @@
 """Discord Events"""
 
 import discord
+from discord.ext import commands
 
 from bot.bot_utils import *
-from bot.discord_client.discord_client import get_client
+from bot.discord_client import get_client
 from database.db_utils import insert, modify, exists, query, delete, Collection
 
 client = get_client()
@@ -23,22 +24,25 @@ async def on_ready():
 
 @client.event
 async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFoundError):
+    if isinstance(error, commands.CommandNotFound):
         return
+
+    error = f"exception in {ctx.command.name}: {error}"
     print(error)
     msg = "ha ocurrido un error"
     if isinstance(error, commands.MissingRequiredArgument):
         msg = f"{msg}, faltan argumentos"
-    elif isinstance(error, commands.ArgumentParsingError):
+    elif isinstance(error, commands.BadArgument):
         msg = f"{msg}, un argumento no es valido"
     else:
+        for id in global_settings["dev_ids"]:
+            dev = await client.fetch_user(id)
+            await dev.send(f"BUG REPORT: {error}")
         msg = f"{msg}, ah sido reportado a los desarrolladores"
-
 
     await send_message(ctx, msg)
 
 
-# TODO specifc db
 @client.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     """Sirve para controlar el sistema de la tienda del bot a través de reacciones.
@@ -62,7 +66,8 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     seller_user = await client.fetch_user(product["UserID"])
 
-    if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌":
+    if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
+            payload.member.id != product["UserID"]:
         await msg.delete()
         delete("msg_id", payload.message_id, guild, Collection.shop.value)
 
@@ -89,25 +94,25 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                            Collection.balances.value)
 
                     seller_balance['balance'] += quantity
-                    modify("user_id", seller_balance['user_id'], "balance", buyer_balance['balance'], guild,
+                    modify("user_id", seller_balance['user_id'], "balance", seller_balance['balance'], guild,
                            Collection.balances.value)
 
                     sale = {
                         "date": get_time(),
                         "type": "compra en tienda",
-                        "buyer": buyer_balance['user_id'],
-                        "seller": seller_balance['user_id'],
+                        "sender_id": buyer_balance['user_id'],
+                        "receiver_id": seller_balance['user_id'],
                         "quantity": quantity,
                         "product": product["Name"]
                     }
 
                     transaction = insert(sale, guild, Collection.transactions.value)
 
-                    await payload.member.send(f"has adquirido el producto:{product['Name']}, del usuario:"
-                                              f"{seller_user.name}; id:{seller_user.id}\n"
+                    await payload.member.send(f"has adquirido el producto: {product['Name']}, del usuario: "
+                                              f"{seller_user.name}; id: {seller_user.id}\n"
                                               f"id transaccion: {transaction.inserted_id}")
-                    await seller_user.send(f"el usuario:{payload.member.name}; id:{payload.member.id} ah adquirido tu "
-                                           f"producto:{product['Name']}, debes cumplir con la entrega\n"
+                    await seller_user.send(f"el usuario: {payload.member.name}; id: {payload.member.id} ah adquirido tu "
+                                           f"producto: {product['Name']}, debes cumplir con la entrega\n"
                                            f"id transaccion: {transaction.inserted_id}")
                 else:
                     await payload.member.send("no tienes suficientes monedas")

@@ -4,7 +4,7 @@ from discord.ext import commands
 from discord.ext.commands import Context
 
 from database.db_utils import *
-from bot.discord_client.discord_client import get_client
+from bot.discord_client import get_client
 from bot.bot_utils import *
 
 client = get_client()
@@ -19,6 +19,37 @@ async def ping_chek(ctx: Context):
         ctx (Context): Context de discord
     """
     await send_message(ctx, f"latencia: {round(client.latency * 1000)}ms")
+
+
+@client.command(name="bug")
+async def report_bug(ctx: Context, command: str, *, info: str):
+    """Reporta un bug a los desarrolladores
+
+    Args:
+        ctx (Context): Context de discord
+        command (str): Comando que ocaciono el bug
+        info (str): Titulo"/"descripcion del bug
+
+    """
+
+    title_description = key_split(info, "/")
+
+    bug = {
+        "title": title_description[0],
+        "description": title_description[1],
+        "command": command
+    }
+
+    insert(bug, ctx.guild, Collection.bugs.value)
+
+    for id in global_settings["dev_ids"]:
+        dev = await client.fetch_user(id)
+        await dev.send(f"BUG REPORT: {bug}")
+
+    await send_message(ctx, "reportado")
+    await ctx.author.send("gracias por reportar un bug, intentaremos solucionarlo lo antes posible.\n"
+                          "porfavor no reenvie este bug o haga un mal uso del reporte, ya que obstruye el "
+                          "trabajo de los desarrolladores")
 
 
 @client.command(name="registro")
@@ -39,10 +70,10 @@ async def register(ctx: Context):
     balance = {
         'user_id': ctx.author.id,
         'user_name': ctx.author.name,
-        'balance': 0
+        'balance': 0.0
     }
 
-    insert(balance, ctx.guild)
+    insert(balance, ctx.guild, Collection.balances.value)
 
     await send_message(ctx, f"has sido añadido a la bonobo-economy {ctx.author.name}, tienes 0.0 monedas")
 
@@ -92,14 +123,10 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
     transaction_log = {
         "date": get_time(),
         "type": "transferencia",
-        "sender": {
-            "id": sender_balance['user_id'],
-            "roles": [rol.name for rol in ctx.author.roles if rol.name != "@everyone"]
-        },
-        "receptor": {
-            "id": receptor_balance['user_id'],
-            "roles": [rol.name for rol in receptor.roles if rol.name != "@everyone"]
-        },
+        "sender_id": sender_balance['user_id'],
+        "sender_roles": [rol.name for rol in ctx.author.roles if rol.name != "@everyone"],
+        "receiver_id": receptor_balance['user_id'],
+        "receiver_roles": [rol.name for rol in receptor.roles if rol.name != "@everyone"],
         "quantity": quantity,
         "channel_name": ctx.message.channel.name
     }
@@ -124,7 +151,7 @@ async def get_coins(ctx: Context):
         ctx (Context): Context de discord
     """
 
-    balance = query("msg_id", ctx.author.id, ctx.guild, Collection.balances.value)
+    balance = query("user_id", ctx.author.id, ctx.guild, Collection.balances.value)
 
     if balance is None:
         await send_message(ctx, f"no estas registrado, registrate con {global_settings['prefix']}registro")
@@ -161,7 +188,7 @@ async def sell_in_shop(ctx: Context, price: float, *, info: str):
 
     await ctx.channel.purge(limit=1)
 
-    msg = await send_message(ctx, f"Vendedor:{ctx.author.name}\n{name_description[1]}",
+    msg = await send_message(ctx, f"Vendedor: {ctx.author.name}\n{name_description[1]}",
                              f"${price} {name_description[0]}")
     product = {
         "msg_id": msg.id,
@@ -176,10 +203,8 @@ async def sell_in_shop(ctx: Context, price: float, *, info: str):
     await msg.add_reaction("❌")
 
 
-# TODO convert to db
 @client.command(name="usuario")
 async def get_user_by_name(ctx: Context, *, _user: str):
-    await ctx.channel.purge(limit=1)
     users = query_all(ctx.guild, Collection.balances.value)
     user_founds = 0
 
@@ -199,9 +224,32 @@ async def get_user_by_name(ctx: Context, *, _user: str):
 
     if user_founds == 0:
         user_founds += 1
-        embed.add_field(name="ninguno")
+        embed.add_field(name="Nada", value="ningun usuario fue encontrado")
 
     await ctx.channel.send(embed=embed)
+
+
+@client.command(name="validar")
+async def validate_transaction(ctx: Context, _id: str):
+    """Comando para validar una transaccion a travez de su id.
+
+    Args:
+        ctx (Context): Context de Discord
+        _id (float): Cantidad de monedas a imprimir
+    """
+
+    await ctx.channel.purge(limit=1)
+    transaction = query_id(_id, ctx.guild, Collection.transactions.value)
+
+    if transaction is None:
+        await ctx.author.send("id invalido")
+    else:
+        sender_user = await client.fetch_user(transaction["sender_id"])
+        receiver_user = await client.fetch_user(transaction["receiver_id"])
+        await ctx.author.send(f"transaccion {_id} valida")
+        await ctx.author.send(embed=discord.Embed(title=f"${transaction['quantity']}",
+                              description=f"enviador: id {sender_user.id} name {sender_user.name}\nreceptor: id "
+                              f"{receiver_user.id} name {receiver_user.name}", colour=discord.colour.Color.gold()))
 
 
 @client.command(name="imprimir")
@@ -257,7 +305,6 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
                             f"id {receptor_balance['user_id']}")
 
 
-# TODO refresh db
 @client.command(name="init")
 @commands.has_permissions(administrator=True)
 async def init_economy(ctx: Context):
@@ -296,7 +343,7 @@ async def init_economy(ctx: Context):
 
         await currency_tb.edit(embed=embed, content="")
 
-        random_user = get_random_user(ctx.guild)
+        random_user = query_rnd(ctx.guild, Collection.balances.value)
         random_user['balance'] += 1
         modify("user_id", random_user['user_id'], "balance", random_user['balance'], ctx.guild,
                Collection.balances.value)
@@ -310,7 +357,7 @@ async def init_economy(ctx: Context):
             }
         }
 
-        insert(log_bson, ctx.guild, Collection.transactions.value)
+        insert(log_bson, ctx.guild, Collection.forge.value)
 
         await send_message(ctx, f"se le ha asignado a {random_user['user_name']}", "Nueva Moneda")
 
@@ -326,12 +373,12 @@ async def reset_economy(ctx: Context):
 
     users = query_all(ctx.guild, Collection.balances.value)
     for user in users:
-        modify("msg_id", user['user_id'], 0, ctx.guild, Collection.balances.value)
+        modify("msg_id", user['user_id'], "balance", 0, ctx.guild, Collection.balances.value)
 
     await send_message(ctx, "todos los usuarios tienen 0 monedas")
 
 
-@client.command(name="help")
+@client.command(name="ayuda")
 async def help_cmd(ctx: Context):
     """Retorna la lista de comandos disponibles, Manda un mensaje con la información de los comandos del bot
 
@@ -364,10 +411,14 @@ async def help_cmd(ctx: Context):
     )
 
     embed.add_field(
+        name=f"{client.command_prefix}validar",
+        value="Valida una transaccion a travez de su id\n\nArgumentos: _id: identificador de la transaccion",
+    )
+
+    embed.add_field(
         name=f"{client.command_prefix}bug",
         value="Reporta un bug a los desarrolladores, porfavor usar con regulacion y sin obstruir el reporte errores"
-              "\n\nArgumentos: comando: comando que ocasiono el bug;"
-              "info: titulo/descripcion del bug"
+              "\n\nArgumentos: comando: comando que ocasiono el bug; info: titulo/descripcion del bug"
     )
 
     await ctx.channel.purge(limit=1)
