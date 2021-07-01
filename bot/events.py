@@ -21,6 +21,7 @@ async def on_ready():
     print(client.user.id)
     print('-----------')
 
+
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):

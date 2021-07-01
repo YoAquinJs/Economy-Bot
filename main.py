@@ -19,3 +19,12 @@ cd documents\codeprojects\economy-bot
 conda activate bonoboenv
 python main.py 
 """
+
+""" heroku deply commands
+cd documents\codeprojects\economy-bot
+heroku login
+git add .
+git commit -am "whatever"
+git push heroku master
+heroku logs -a cb-economy-bot
+"""

@@ -1,6 +1,5 @@
 """Contiene multiples metodos los cuales son utilizados por otros modulos, principalmente commands.py e events.py"""
 
-import os
 import json
 import pytz
 import asyncio

@@ -88,7 +88,7 @@ async def register(ctx: Context):
     balance = {
         'user_id': ctx.author.id,
         'user_name': ctx.author.name,
-        'balance': 0.0
+        'balance': 0.00
     }
 
     insert(balance, ctx.guild, Collection.balances.value)
@@ -142,6 +142,7 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
         await send_message(ctx, f"no puedes enviar cantidades negativas o ninguna moneda")
         return
 
+    quantity = round(quantity, global_settings["max_decimals"])
     sender_balance = query("user_id", ctx.author.id, ctx.guild, Collection.balances.value)
     receptor_balance = query("user_id", receptor.id, ctx.guild, Collection.balances.value)
 
@@ -236,6 +237,7 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
         await send_message(ctx, "el precio no puede ser negativo o 0")
         return
 
+    price = round(price, global_settings["max_decimals"])
     await ctx.channel.purge(limit=1)
 
     msg = await send_message(ctx, f"Vendedor: {ctx.author.name}\n{name_description[1]}",
@@ -284,6 +286,8 @@ async def edit_product_in_shop(ctx: Context, _id, price=0, *, info="0/0"):
         price = float(price)
     except:
         raise BadArgument
+
+    price = round(price, global_settings["max_decimals"])
 
     if price < 0:
         await send_message(ctx, "el precio no puede ser negativo", 0, True)
@@ -542,6 +546,8 @@ async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
         await send_message(ctx, f"no puedes imprimir cantidades negativas o ninguna moneda")
         return
 
+    quantity = round(quantity, global_settings["max_decimals"])
+
     receptor_balance['balance'] += quantity
     modify("user_id", receptor.id, "balance", receptor_balance['balance'], ctx.guild, Collection.balances.value)
 
@@ -569,6 +575,8 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
     if quantity <= 0:
         await send_message(ctx, f"no puedes expropiar cantidades negativas o ninguna moneda")
         return
+
+    quantity = round(quantity, global_settings["max_decimals"])
 
     if receptor_balance['balance'] < quantity:
         quantity = receptor_balance['balance']
@@ -649,7 +657,7 @@ async def reset_economy(ctx: Context):
 
     users = query_all(ctx.guild, Collection.balances.value)
     for user in users:
-        modify("user_id", user['user_id'], "balance", 0, ctx.guild, Collection.balances.value)
+        modify("user_id", user['user_id'], "balance", 0.00, ctx.guild, Collection.balances.value)
 
     await send_message(ctx, "todos los usuarios tienen 0 monedas")
 
