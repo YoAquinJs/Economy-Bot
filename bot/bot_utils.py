@@ -21,14 +21,14 @@ def get_time():
     return str(datetime.datetime.now(pytz.utc))
 
 
-def key_split(key, splitch="_"):
+def key_split(key, split_ch="_"):
     """Separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se puedan identificar
        con usuario o nombre)
     """
 
     i = 0
     for ch in key:
-        if ch == splitch:
+        if ch == split_ch:
             break
         i = i + 1
 

@@ -18,7 +18,7 @@ def init_client():
     intents.members = True
 
     client = commands.Bot(command_prefix=global_settings["prefix"], help_command=None,
-                          activity=discord.Game(f"Economy Bot | {global_settings['prefix']}help"),
+                          activity=discord.Game(f"Economy Bot | {global_settings['prefix']}ayuda"),
                           status=discord.Status.online, intents=intents)
 
 

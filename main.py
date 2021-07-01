@@ -9,16 +9,13 @@ global_settings = bot_utils.get_global_settings()
 mongo_client.init_database()
 print("data base initialized")
 
-try:
-    client.run(global_settings["token"])
-except KeyboardInterrupt:
-    client.logout()
-    client.close()
-finally:
-    mongo_client.close_client()
-    print("Disconnected")
+client.run(global_settings["token"])
 
-# anaconda commands
-# cd documents\codeprojects\economy-bot
-# conda activate bonoboenv
-# python main.py
+mongo_client.close_client()
+print("Disconnected")
+
+""" anaconda commands
+cd documents\codeprojects\economy-bot
+conda activate bonoboenv
+python main.py 
+"""

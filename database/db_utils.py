@@ -13,6 +13,7 @@ class Collection(Enum):
     bugs = "bugs"
     shop = "shop"
     forge = "forge"
+    deregisters = "deregisters"
     balances = "balances"
     transactions = "transactions"
 
@@ -104,7 +105,10 @@ def query_id(file_id: str, guild: discord.Guild, collection: str):
 
     database_name = get_database_name(guild)
 
-    return _mongo_client[database_name][collection].find_one({"_id": ObjectId(file_id)})
+    try:
+        return _mongo_client[database_name][collection].find_one({"_id": ObjectId(file_id)})
+    except:
+        return None
 
 
 def query_all(guild: discord.Guild, collection: str):

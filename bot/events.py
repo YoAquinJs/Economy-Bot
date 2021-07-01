@@ -21,22 +21,28 @@ async def on_ready():
     print(client.user.id)
     print('-----------')
 
-
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
 
-    error = f"exception in {ctx.command.name}: {error}"
-    print(error)
     msg = "ha ocurrido un error"
     if isinstance(error, commands.MissingRequiredArgument):
         msg = f"{msg}, faltan argumentos"
     elif isinstance(error, commands.BadArgument):
         msg = f"{msg}, un argumento no es valido"
+    elif isinstance(error, commands.TooManyArguments):
+        msg = f"{msg}, demasiados argumentos"
+    elif isinstance(error, commands.MissingPermissions):
+        msg = f"{msg}, no tienes permisos para realizar esta accion"
+    elif isinstance(error, commands.BotMissingPermissions):
+        msg = f"{msg}, de bot no tiene permisos para realizar esta accion"
+
     else:
-        for id in global_settings["dev_ids"]:
-            dev = await client.fetch_user(id)
+        error = f"exception in {ctx.command.name}: {error}"
+        print(error)
+        for dev_id in global_settings["dev_ids"]:
+            dev = await client.fetch_user(dev_id)
             await dev.send(f"BUG REPORT: {error}")
         msg = f"{msg}, ah sido reportado a los desarrolladores"
 
@@ -64,22 +70,22 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     await msg.remove_reaction(payload.emoji, payload.member)
 
-    seller_user = await client.fetch_user(product["UserID"])
+    seller_user = await client.fetch_user(product["user_id"])
 
     if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
-            payload.member.id != product["UserID"]:
+            payload.member.id != product["user_id"]:
         await msg.delete()
         delete("msg_id", payload.message_id, guild, Collection.shop.value)
 
-        await payload.member.send(f"has eliminado el producto {product['Name']}, del usuario {seller_user.name}, id"
+        await payload.member.send(f"has eliminado el producto {product['name']}, del usuario {seller_user.name}, id"
                                   f" {seller_user.id}")
-        await seller_user.send(f"tu producto {product['Name']} ah sido eliminado por el administrator "
+        await seller_user.send(f"tu producto {product['name']} ah sido eliminado por el administrator "
                                f"{payload.member.name}, id {payload.member.id}")
-    elif payload.member.id != product["UserID"]:
+    elif payload.member.id != product["user_id"]:
         if str(payload.emoji) != "🪙":
             return
         else:
-            quantity = product["Price"]
+            quantity = product["price"]
             buyer_balance = query("user_id", payload.member.id, guild, Collection.balances.value)
             seller_balance = query("user_id", seller_user.id, guild, Collection.balances.value)
 
@@ -103,16 +109,17 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                         "sender_id": buyer_balance['user_id'],
                         "receiver_id": seller_balance['user_id'],
                         "quantity": quantity,
-                        "product": product["Name"]
+                        "product_name": product["name"],
+                        "product_id": product["_id"]
                     }
 
                     transaction = insert(sale, guild, Collection.transactions.value)
 
-                    await payload.member.send(f"has adquirido el producto: {product['Name']}, del usuario: "
+                    await payload.member.send(f"has adquirido el producto: {product['name']}, del usuario: "
                                               f"{seller_user.name}; id: {seller_user.id}\n"
                                               f"id transaccion: {transaction.inserted_id}")
                     await seller_user.send(f"el usuario: {payload.member.name}; id: {payload.member.id} ah adquirido tu "
-                                           f"producto: {product['Name']}, debes cumplir con la entrega\n"
+                                           f"producto: {product['name']}, debes cumplir con la entrega\n"
                                            f"id transaccion: {transaction.inserted_id}")
                 else:
                     await payload.member.send("no tienes suficientes monedas")
@@ -124,4 +131,4 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             await msg.delete()
             delete("msg_id", payload.message_id, guild, Collection.shop.value)
 
-            await seller_user.send(f"has eliminado tu producto {product['Name']}")
+            await seller_user.send(f"has eliminado tu producto {product['name']}")
