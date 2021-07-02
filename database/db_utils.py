@@ -197,3 +197,9 @@ def query_rnd(guild: discord.Guild, collection: str):
         rnd = i
 
     return rnd
+
+
+def delete_database_guild(guild: discord.Guild):
+    database_name = get_database_name(guild)
+
+    _mongo_client.drop_database(database_name)
