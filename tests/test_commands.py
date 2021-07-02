@@ -1,3 +1,4 @@
+from tests.simulations import *
 import pytest
 import discord.ext.test as dpytest
 from discord import Permissions
@@ -9,64 +10,62 @@ from bot.discord_client import get_client
 from database import db_utils
 
 
+admin_user = None
+admin_member = None
+guild = None
+
+
 @pytest.fixture
-def bot(event_loop):
+async def bot(event_loop):
+    global admin_user, admin_member, guild
+
     bot = get_client()
     bot.loop = event_loop
 
     dpytest.configure(bot)
+    guild = dpytest.get_config().guilds[0]
+    db_utils.delete_database_guild(guild)
+
+    admin_user = dpytest.backend.make_user(username='Test', discrim=1)
+    admin_member = dpytest.backend.make_member(admin_user, guild)
+    admin_role = await guild.create_role(name="Admin", permissions=Permissions.all())
+    await admin_member.add_roles(admin_role)
+
     return bot
 
 
 @pytest.mark.asyncio
 async def test_registro(bot):
-    guild = dpytest.get_config().guilds[0]
-
-    await dpytest.message('!registro')
-
-    emb_desc = dpytest.get_embed().description
     db_utils.delete_database_guild(guild)
-    assert 'has sido añadido a la bonobo-economy' in emb_desc
+
+    msg = await simulate_registration(dpytest, admin_member)
+    desired_msg = f'has sido añadido a la bonobo-economy {admin_member.display_name}, tienes 0.0 monedas'
+
+    assert desired_msg == msg
 
 
 @pytest.mark.asyncio
 async def test_desregistro(bot):
-    guild = dpytest.get_config().guilds[0]
-
-    await dpytest.message('!registro')
-    await dpytest.empty_queue()
-    await dpytest.message('!desregistro')
-
-    emb_desc = dpytest.get_embed().description
     db_utils.delete_database_guild(guild)
 
-    assert 'te has des registrado de la bonobo-economy' in emb_desc
+    await simulate_registration(dpytest, admin_member)
+    deregistration_message = await simulate_desregistration(dpytest, admin_member)
+    desired_msg = f'te has des registrado de la bonobo-economy {admin_member.display_name}, lamentamos tu des registro'
+
+    assert desired_msg == deregistration_message
 
 
 @pytest.mark.asyncio
 async def test_imprimir(bot):
-    guild = dpytest.get_config().guilds[0]
-    admin_role = await guild.create_role(name="Admin", permissions=Permissions.all())
-
-    test_user1 = dpytest.backend.make_user(username='Test', discrim=1)
-    test_member1 = dpytest.backend.make_member(test_user1, guild)
-    await test_member1.add_roles(admin_role)
-
-    await dpytest.message('!registro', member=test_member1)
-
-    await dpytest.empty_queue()
-    await dpytest.message(f'!imprimir 200 {test_member1.mention}', member=test_member1)
-
-    embed_desc_result = dpytest.get_embed().description
-    desired_emb_desc = f'se imprimieron 200.0, y se le asignaron a {test_user1.name}, id {test_user1.id}'
-
-    assert embed_desc_result == desired_emb_desc
-
-    await dpytest.empty_queue()
-    await dpytest.message(f'!monedas', member=test_member1)
-
-    embed_desc_result = dpytest.get_embed().description
-    desired_emb_desc = f'tienes 200.0 bonobo coins {test_user1.name}'
-
     db_utils.delete_database_guild(guild)
-    assert embed_desc_result == desired_emb_desc
+
+    await simulate_registration(dpytest, admin_member)
+    print_embed_desc = await simulate_imprimir_monedas(dpytest, admin_member, admin_member)
+    desired_print_embed_desc = f'se imprimieron 200.0, y se le asignaron a {admin_member.display_name}, id {admin_user.id}'
+
+    assert print_embed_desc == desired_print_embed_desc
+
+    monedas_embed_desc = await simulate_ver_monedas(dpytest, admin_member)
+    desired_monedas_embed_desc = f'tienes 200.0 bonobo coins {admin_user.name}'
+
+    assert monedas_embed_desc == desired_monedas_embed_desc

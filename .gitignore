@@ -11,3 +11,6 @@ prueba_mongo.py
 
 settings.json
 __pycache__
+
+/.pytest_cache
+.pytest_cache
