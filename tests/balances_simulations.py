@@ -68,7 +68,7 @@ async def simulate_ver_monedas(dpytest, member: discord.Member) -> str:
     return dpytest.get_embed().description
 
 
-async def simulate_expropiar(dpytest, quantity: float,member: discord.Member, admin: discord.Member) -> str:
+async def simulate_expropiar(dpytest, quantity: float, member: discord.Member, admin: discord.Member) -> str:
     """Simula el comando !expropiar
 
     Args:
@@ -90,8 +90,8 @@ async def simulate_transferir(dpytest, member: discord.Member, quantity: float, 
     """Sumula el comando !transferir
 
     Args:
-        dpytest (module): [description]
-        member (discord.Member): miembro que va enviar monedas
+        dpytest (module): referencia al modulo de dpytest
+        member (discord.Member): miembro que va a enviar monedas
         quantity (float): cantidad a enviar
         receptor (discord.member): mienbro que va a recibir monedas
 
@@ -102,3 +102,20 @@ async def simulate_transferir(dpytest, member: discord.Member, quantity: float, 
     await dpytest.message(f'!transferir {quantity} {receptor.mention}', member=member)
 
     return dpytest.get_embed().description
+
+
+async def simulate_usuarios(dpytest, buscar: str, member: discord.Member) -> discord.Embed:
+    """Simula el comando !usuarios, busca a los usuarios que empiezan con el agumento buscar
+
+    Args:
+        dpytest (module): referencia al modulo de dpytest
+        buscar (str): argumento para buscar
+        member (discord.Member): miembro que va a ejecutar el comando
+
+    Returns:
+        discord.Embed: embed con los usuarios encontrados
+    """
+    await dpytest.empty_queue()
+    await dpytest.message(f'!usuario {buscar}', member=member)
+
+    return dpytest.get_embed()

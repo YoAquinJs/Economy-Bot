@@ -1,4 +1,4 @@
-from tests.simulations import *
+from tests.balances_simulations import *
 import pytest
 import discord.ext.test as dpytest
 from discord import Permissions
@@ -127,4 +127,33 @@ async def test_transferir(bot):
     desired_balance_test = f'tienes 50.5 bonobo coins {test_user.name}'
 
     assert balance_test == desired_balance_test
+    db_utils.delete_database_guild(guild)
+
+
+@pytest.mark.asyncio
+async def test_buscar_usuarios(bot):
+    buscar = 'UsuarioTest'
+    # Crear 2 usuarios
+    user1 = dpytest.backend.make_user(username='UsuarioTest 1', discrim=3)
+    member1 = dpytest.backend.make_member(user1, guild)
+    await simulate_registration(dpytest, member1)
+
+    user2 = dpytest.backend.make_user(username='UsuarioTest 2', discrim=4)
+    member2 = dpytest.backend.make_member(user2, guild)
+    await simulate_registration(dpytest, member2)
+
+    embed = await simulate_usuarios(dpytest, buscar, admin_member)
+
+    desired_embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados",
+                                  description=f"tabla de todos los usuarios que inician con el nombre especificado")
+
+    desired_embed.add_field(
+        name=f"{user1.name}",
+        value=f"ID:{user1.id}\nmonedas:0.0")
+    desired_embed.add_field(
+        name=f"{user2.name}",
+        value=f"ID:{user2.id}\nmonedas:0.0")
+
+    assert dpytest.embed_eq(embed, desired_embed)
+
     db_utils.delete_database_guild(guild)
