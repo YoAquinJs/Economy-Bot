@@ -1,5 +1,4 @@
 import discord
-from discord.member import Member
 
 
 async def simulate_registration(dpytest, member: discord.Member):
@@ -36,7 +35,7 @@ async def simulate_desregistration(dpytest, member: discord.Member):
     return emb_desc
 
 
-async def simulate_imprimir_monedas(dpytest, member: discord.Member, receiving_member: discord.Member):
+async def simulate_imprimir_monedas(dpytest, quantity: float ,member: discord.Member, receiving_member: discord.Member):
     """Hace una simulacion del comando !imprimir
 
     Args:
@@ -45,7 +44,7 @@ async def simulate_imprimir_monedas(dpytest, member: discord.Member, receiving_m
         receiving_member (discord.Member): Miembo al que se le van a dar las monedas impresas
     """
     await dpytest.empty_queue()
-    await dpytest.message(f'!imprimir 200 {receiving_member.mention}', member=member)
+    await dpytest.message(f'!imprimir {quantity} {receiving_member.mention}', member=member)
 
     return dpytest.get_embed().description
 
@@ -59,5 +58,12 @@ async def simulate_ver_monedas(dpytest, member: discord.Member):
     """
     await dpytest.empty_queue()
     await dpytest.message(f'!monedas {member.mention}', member=member)
+
+    return dpytest.get_embed().description
+
+
+async def simulate_expropiar(dpytest, quantity: float ,member: discord.Member):
+    await dpytest.empty_queue()
+    await dpytest.message(f'!expropiar {quantity} {member.mention}', member=member)
 
     return dpytest.get_embed().description

@@ -36,31 +36,32 @@ async def bot(event_loop):
 
 @pytest.mark.asyncio
 async def test_registro(bot):
-    db_utils.delete_database_guild(guild)
 
     msg = await simulate_registration(dpytest, admin_member)
     desired_msg = f'has sido añadido a la bonobo-economy {admin_member.display_name}, tienes 0.0 monedas'
 
+    db_utils.delete_database_guild(guild)
     assert desired_msg == msg
 
 
 @pytest.mark.asyncio
 async def test_desregistro(bot):
-    db_utils.delete_database_guild(guild)
 
-    await simulate_registration(dpytest, admin_member)
-    deregistration_message = await simulate_desregistration(dpytest, admin_member)
+    msg = await simulate_registration(dpytest, admin_member)
+    desired_msg = f'has sido añadido a la bonobo-economy {admin_member.display_name}, tienes 0.0 monedas'
+    assert desired_msg == msg
+
+    msg = await simulate_desregistration(dpytest, admin_member)
     desired_msg = f'te has des registrado de la bonobo-economy {admin_member.display_name}, lamentamos tu des registro'
+    assert desired_msg == msg
 
-    assert desired_msg == deregistration_message
+    db_utils.delete_database_guild(guild)
 
 
 @pytest.mark.asyncio
 async def test_imprimir(bot):
-    db_utils.delete_database_guild(guild)
-
     await simulate_registration(dpytest, admin_member)
-    print_embed_desc = await simulate_imprimir_monedas(dpytest, admin_member, admin_member)
+    print_embed_desc = await simulate_imprimir_monedas(dpytest, 200,admin_member, admin_member)
     desired_print_embed_desc = f'se imprimieron 200.0, y se le asignaron a {admin_member.display_name}, id {admin_user.id}'
 
     assert print_embed_desc == desired_print_embed_desc
@@ -69,3 +70,30 @@ async def test_imprimir(bot):
     desired_monedas_embed_desc = f'tienes 200.0 bonobo coins {admin_user.name}'
 
     assert monedas_embed_desc == desired_monedas_embed_desc
+    db_utils.delete_database_guild(guild)
+
+
+@pytest.mark.asyncio
+async def test_expropiar(bot):
+    await simulate_registration(dpytest, admin_member)
+    print_embed_desc = await simulate_imprimir_monedas(dpytest, 200,admin_member, admin_member)
+    desired_print_embed_desc = f'se imprimieron 200.0, y se le asignaron a {admin_member.display_name}, id {admin_user.id}'
+
+    assert print_embed_desc == desired_print_embed_desc
+
+    monedas_embed_desc = await simulate_ver_monedas(dpytest, admin_member)
+    desired_monedas_embed_desc = f'tienes 200.0 bonobo coins {admin_user.name}'
+
+    assert monedas_embed_desc == desired_monedas_embed_desc
+
+    expropiar_embed_desc = await simulate_expropiar(dpytest, 10.75, admin_member)
+    desired_expropiar_embed_desc = f'se le expropiaron 10.75 monedas a {admin_user.name}, id {admin_user.id}'
+
+    assert expropiar_embed_desc == desired_expropiar_embed_desc
+
+    monedas_embed_desc = await simulate_ver_monedas(dpytest, admin_member)
+    desired_monedas_embed_desc = f'tienes 189.25 bonobo coins {admin_user.name}'
+
+    assert monedas_embed_desc == desired_monedas_embed_desc
+
+    db_utils.delete_database_guild(guild)
