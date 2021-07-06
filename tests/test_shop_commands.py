@@ -14,25 +14,31 @@ from tests.shop_simulations import *
 admin_user = None
 admin_member = None
 guild = None
+database_name = ''
+global_settings = get_global_settings()
 
 
 @pytest.fixture
 async def bot(event_loop):
-    global admin_user, admin_member, guild
+    global admin_user, admin_member, guild, database_name
 
     bot = get_client()
     bot.loop = event_loop
 
     dpytest.configure(bot)
     guild = dpytest.get_config().guilds[0]
-    db_utils.delete_database_guild(guild)
+
+    database_name = get_database_name(guild)
+    db_utils.delete_database_guild(database_name)
 
     admin_user = dpytest.backend.make_user(username='Admin', discrim=1)
     admin_member = dpytest.backend.make_member(admin_user, guild)
     admin_role = await guild.create_role(name="Admin", permissions=Permissions.all())
     await admin_member.add_roles(admin_role)
 
-    return bot
+    yield bot
+    db_utils.delete_database_guild(database_name)
+
 
 
 @pytest.mark.asyncio
@@ -57,7 +63,6 @@ async def test_producto(bot):
         title=f"${product_cost} {product_title}", description=f"Vendedor: {member1.display_name}\n{product_description}", colour=discord.colour.Color.gold())
 
     assert dpytest.embed_eq(product_embed, desired_product_embed)
-    db_utils.delete_database_guild(guild)
     # Da un error cuando se simulan las reacciones por eso este test esta incompleto
 
 

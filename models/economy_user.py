@@ -89,8 +89,10 @@ class EconomyUser():
 
         return True
 
-    def get_data_from_dict(self, **data):
-        self.__dict__.update(data)
+    def get_data_from_dict(self, data):
+        self._id = data['_id']
+        self.name = data['name']
+        self.balance = Balance(data['balance'], self)
 
     @property
     def id(self) -> int:

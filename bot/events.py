@@ -43,7 +43,7 @@ async def on_command_error(ctx, error):
     else:
         error = f"exception in {ctx.command.name}: {error}"
         print(error)
-        for dev_id in global_settings["dev_ids"]:
+        for dev_id in global_settings.dev_ids:
             dev = await client.fetch_user(dev_id)
             await dev.send(f"BUG REPORT: {error}")
         msg = f"{msg}, ah sido reportado a los desarrolladores"
@@ -60,15 +60,18 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     """
 
     guild = client.get_guild(payload.guild_id)
+    database_name = get_database_name(guild)
 
     if payload.member.bot or \
-       exists("msg_id", payload.message_id, guild, CollectionNames.shop.value) is False:
+       exists("_id", payload.message_id, database_name, CollectionNames.shop.value) is False:
         return
 
-    channel = discord.utils.get(client.get_guild(payload.guild_id).channels, id=payload.channel_id)
+    channel = discord.utils.get(client.get_guild(
+        payload.guild_id).channels, id=payload.channel_id)
     msg = await channel.fetch_message(payload.message_id)
 
-    product = query("msg_id", payload.message_id, guild, CollectionNames.shop.value)
+    product = query("_id", payload.message_id, database_name,
+                    CollectionNames.shop.value)
 
     await msg.remove_reaction(payload.emoji, payload.member)
 
@@ -77,19 +80,22 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
             payload.member.id != product["user_id"]:
         await msg.delete()
-        delete("msg_id", payload.message_id, guild, CollectionNames.shop.value)
+        delete("_id", payload.message_id, database_name,
+               CollectionNames.shop.value)
 
-        await payload.member.send(f"has eliminado el producto {product['name']}, del usuario {seller_user.name}, id"
+        await payload.member.send(f"has eliminado el producto {product['title']}, del usuario {seller_user.name}, id"
                                   f" {seller_user.id}")
-        await seller_user.send(f"tu producto {product['name']} ah sido eliminado por el administrator "
+        await seller_user.send(f"tu producto {product['title']} ha sido eliminado por el administrator "
                                f"{payload.member.name}, id {payload.member.id}")
     elif payload.member.id != product["user_id"]:
         if str(payload.emoji) != "🪙":
             return
         else:
             quantity = product["price"]
-            buyer_balance = query("user_id", payload.member.id, guild, CollectionNames.balances.value)
-            seller_balance = query("user_id", seller_user.id, guild, CollectionNames.balances.value)
+            buyer_balance = query("_id", payload.member.id,
+                                  database_name, CollectionNames.users.value)
+            seller_balance = query("_id", seller_user.id,
+                                   database_name, CollectionNames.users.value)
 
             # Si el comprador esta registrado
             if buyer_balance is not None:
@@ -98,39 +104,41 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                     # if economic_users[author_key]["coins"] >= quantity:
 
                     buyer_balance['balance'] -= quantity
-                    modify("user_id", buyer_balance['user_id'], "balance", buyer_balance['balance'], guild,
-                           CollectionNames.balances.value)
+                    modify("_id", buyer_balance['_id'], "balance", buyer_balance['balance'], database_name,
+                           CollectionNames.users.value)
 
                     seller_balance['balance'] += quantity
-                    modify("user_id", seller_balance['user_id'], "balance", seller_balance['balance'], guild,
-                           CollectionNames.balances.value)
+                    modify("_id", seller_balance['_id'], "balance", seller_balance['balance'], database_name,
+                           CollectionNames.users.value)
 
                     sale = {
                         # "date": get_time(),
                         "type": "compra en tienda",
-                        "sender_id": buyer_balance['user_id'],
-                        "receiver_id": seller_balance['user_id'],
+                        "sender_id": buyer_balance['_id'],
+                        "receiver_id": seller_balance['_id'],
                         "quantity": quantity,
-                        "product_name": product["name"],
+                        "product_name": product["title"],
                         "product_id": product["_id"]
                     }
 
-                    transaction = insert(sale, guild, CollectionNames.transactions.value)
+                    transaction = insert(
+                        sale, database_name, CollectionNames.transactions.value)
 
-                    await payload.member.send(f"has adquirido el producto: {product['name']}, del usuario: "
+                    await payload.member.send(f"has adquirido el producto: {product['title']}, del usuario: "
                                               f"{seller_user.name}; id: {seller_user.id}\n"
                                               f"id transaccion: {transaction.inserted_id}")
-                    await seller_user.send(f"el usuario: {payload.member.name}; id: {payload.member.id} ah adquirido tu "
-                                           f"producto: {product['name']}, debes cumplir con la entrega\n"
+                    await seller_user.send(f"el usuario: {payload.member.name}; id: {payload.member.id} ha adquirido tu "
+                                           f"producto: {product['title']}, debes cumplir con la entrega\n"
                                            f"id transaccion: {transaction.inserted_id}")
                 else:
                     await payload.member.send("no tienes suficientes monedas")
             else:
-                await payload.member.send(f"no estas registrado, registrate con {global_settings['prefix']}registro")
+                await payload.member.send(f"no estas registrado, registrate con {global_settings.prefix}registro")
             pass
     else:
         if str(payload.emoji) == "❌":
             await msg.delete()
-            delete("msg_id", payload.message_id, guild, CollectionNames.shop.value)
+            delete("_id", payload.message_id, database_name,
+                   CollectionNames.shop.value)
 
-            await seller_user.send(f"has eliminado tu producto {product['name']}")
+            await seller_user.send(f"has eliminado tu producto {product['title']}")

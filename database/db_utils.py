@@ -1,7 +1,5 @@
 """El módulo db_utils contiene metodos que acceden y modifican datos en la base de datos de MongoDB"""
 
-from bson.objectid import ObjectId
-
 from models.economy_user import EconomyUser
 from models.enums import CollectionNames
 
@@ -88,7 +86,7 @@ def query_id(file_id: str, database_name: str, collection: str):
     """
 
     try:
-        return _mongo_client[database_name][collection].find_one({"_id": ObjectId(file_id)})
+        return _mongo_client[database_name][collection].find_one({"_id": file_id})
     except:
         return None
 
@@ -117,14 +115,18 @@ def exists(key: str, value, database_name: str, collection: str):
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
-                pymongo.cursor.Cursor: Clase iterable sobre Mongo query results de todos los archivos en la coleccion
+                bool: Dice si existe en la db
     """
+    doc = _mongo_client[database_name][collection].find_one({
+        key: value
+    }, {
+        key: 1
+    })
 
-    for file in _mongo_client[database_name][collection].find({}):
-        if file[key] == value:
-            return True
+    if doc == None:
+        return False
 
-    return False
+    return True
 
 
 def get_random_user(database_name: str) -> EconomyUser:

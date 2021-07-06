@@ -1,15 +1,19 @@
-from bot import bot_utils, discord_client, commands, events
-from core import economy_management, store, transactions, user
-from database import mongo_client, db_utils
+from bot import discord_client
+
+from bot.commands import *
+from bot.events import *
+
+from database import mongo_client
+from utils import utils
 
 client = discord_client.get_client()
 
 # los settings globales aplican a todos los servidores en que se encuentre el bot (prefix, token, )
-global_settings = bot_utils.get_global_settings()
+global_settings = utils.get_global_settings()
 mongo_client.init_database()
 print("data base initialized")
 
-client.run(global_settings["token"])
+client.run(global_settings.token)
 
 mongo_client.close_client()
 print("Disconnected")

@@ -1,5 +1,6 @@
 """Registra todos los comandos del bot"""
 
+from models.product import Product
 from database import db_utils
 from models.economy_user import EconomyUser
 from discord.ext import commands
@@ -13,7 +14,11 @@ from bot.bot_utils import *
 import core.economy_management
 import core.utils
 import core.transactions
-from models.enums import TransactionStatus
+import core.store
+import core.users
+
+from utils.utils import *
+from models.enums import ProductStatus, TransactionStatus
 
 client = get_client()
 global_settings = get_global_settings()
@@ -177,41 +182,34 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
         price (float): Precio del producto
         info (str): "Título"/"Descripción" del producto
     """
-
-    balance = query("user_id", ctx.author.id, ctx.guild,
-                    CollectionNames.balances.value)
-
-    if balance is None:
-        await send_message(ctx, f"no estas registrado, registrate con {global_settings.prefix}registro")
-        return
-
     if len(info) == 0:
         await send_message(ctx, "tienes que ingresar un nombre")
         return
 
     name_description = key_split(info, "/")
+    title = name_description[0]
+    description = name_description[1]
+    database_name = get_database_name(ctx.guild)
 
-    if price <= 0:
+    new_product = Product(ctx.author.id, title,
+                          description, price, database_name)
+    check = new_product.check_info()
+    if check == ProductStatus.negative_quantity:
         await send_message(ctx, "el precio no puede ser negativo o 0")
         return
+    elif check == ProductStatus.seller_does_not_exist:
+        await send_message(ctx, f"no estas registrado, registrate con {global_settings.prefix}registro")
+        return
 
-    price = round(price, global_settings.max_decimals)
     await ctx.channel.purge(limit=1)
 
     msg = await send_message(ctx, f"Vendedor: {ctx.author.name}\n{name_description[1]}",
                              f"${price} {name_description[0]}")
-    product = {
-        "msg_id": msg.id,
-        "price": price,
-        "name": name_description[0],
-        "description": name_description[1],
-        "user_id": ctx.author.id
-    }
-
-    product = insert(product, ctx.guild, CollectionNames.shop.value)
+    new_product.id = msg.id
+    new_product.send_to_db()
 
     await ctx.author.send(f"tu producto ah sido registrado exitosamente, este es el id del producto: "
-                          f"{product.inserted_id}")
+                          f"{new_product.id}")
     await msg.add_reaction("🪙")
     await msg.add_reaction("❌")
 
@@ -228,58 +226,37 @@ async def edit_product_in_shop(ctx: Context, _id, price=0, *, info="0/0"):
         info (str): "Título"/"Descripción" del producto, valor por defecto 0
     """
 
-    balance = query("user_id", ctx.author.id, ctx.guild,
-                    CollectionNames.balances.value)
-
-    if balance is None:
-        await send_message(ctx, f"no estas registrado, registrate con {global_settings.prefix}registro", 0, True)
-        return
-
-    product = query_id(_id, ctx.guild, CollectionNames.shop.value)
-
-    if product is None:
-        await send_message(ctx, f"id invalido", 0, True)
-        return
-
     try:
         price = float(price)
+        _id = int(_id)
     except:
         raise BadArgument
 
-    price = round(price, global_settings.max_decimals)
+    name_description = key_split(info, "/")
+    database_name = get_database_name(ctx.guild)
+    status = core.store.edit_product(
+        _id, ctx.author.id, database_name, price, name_description[0], name_description[1])
 
-    if price < 0:
+    if status == ProductStatus.seller_does_not_exist:
+        await send_message(ctx, f"no estas registrado, registrate con {global_settings.prefix}registro", 0, True)
+        return
+    elif status == ProductStatus.no_exists_in_db:
+        await send_message(ctx, f"id invalido", 0, True)
+        return
+    elif status == ProductStatus.user_is_not_seller_of_product:
+        await send_message(ctx, f"No puedes modificar un producto que no es tuyo.")
+    elif status == ProductStatus.negative_quantity:
         await send_message(ctx, "el precio no puede ser negativo", 0, True)
         return
-
-    name_description = key_split(info, "/")
-
-    if price != 0:
-        modify("user_id", ctx.author.id, "price",
-               price, ctx.guild, CollectionNames.shop.value)
-    else:
-        price = product["price"]
-
-    if name_description[0] != "0":
-        modify("user_id", ctx.author.id, "name",
-               name_description[0], ctx.guild, CollectionNames.shop.value)
-    else:
-        name_description[0] = product["name"]
-
-    if name_description[1] != "0":
-        modify("user_id", ctx.author.id, "description",
-               name_description[1], ctx.guild, CollectionNames.shop.value)
-    else:
-        name_description[1] = product["description"]
 
     embed = discord.Embed(title=f"${price} {name_description[0]}", description=f"Vendedor: {ctx.author.name}\n"
                                                                                f"{name_description[1]}",
                           colour=discord.colour.Color.orange())
 
-    msg = await ctx.channel.fetch_message(product["msg_id"])
+    msg = await ctx.channel.fetch_message(_id)
     await msg.edit(embed=embed)
 
-    await ctx.author.send(f"tu producto ah sido editado exitosamente")
+    await ctx.author.send(f"tu producto ha sido editado exitosamente")
     await send_message(ctx, "editado", 0, True)
 
 
@@ -292,37 +269,41 @@ async def del_product_in_shop(ctx: Context, _id: str):
         _id (str): Id del producto en la base de datos
     """
 
-    balance = query("user_id", ctx.author.id, ctx.guild,
-                    CollectionNames.balances.value)
+    try:
+        _id = int(_id)
+    except:
+        raise BadArgument
+
+    database_name = get_database_name(ctx.guild)
+    product, product_exists = Product.from_database(_id, database_name)
+
+    if not product_exists:
+        await send_message(ctx, f"id invalido", 0, True)
+        return
+
+    balance = query("_id", ctx.author.id, database_name,
+                    CollectionNames.users.value)
     if balance is None:
         await send_message(ctx, f"no estas registrado, registrate con {global_settings.prefix}registro", 0, True)
         return
 
-    product = query_id(_id, ctx.guild, CollectionNames.shop.value)
-
-    if product is None:
-        await send_message(ctx, f"id invalido", 0, True)
-        return
-
-    if product["user_id"] == ctx.author.id:
-        delete("msg_id", product["msg_id"],
-               ctx.guild, CollectionNames.shop.value)
-        msg = await ctx.channel.fetch_message(product["msg_id"])
+    if product.user_id == ctx.author.id:
+        product.delete_on_db()
+        msg = await ctx.channel.fetch_message(product.id)
         await ctx.channel.purge(limit=1)
         await msg.delete()
-        await ctx.author.send(f"has eliminado tu producto {product['name']}")
+        await ctx.author.send(f"has eliminado tu producto {product.name}")
 
     elif ctx.author.permissions_in(ctx.channel).administrator is True:
-        delete("msg_id", product["msg_id"],
-               ctx.guild, CollectionNames.shop.value)
+        product.delete_on_db()
         await ctx.channel.purge(limit=1)
-        msg = await ctx.channel.fetch_message(product["msg_id"])
+        msg = await ctx.channel.fetch_message(product.id)
         await msg.delete()
-        seller_user = await client.fetch_user(product["user_id"])
-        await seller_user.send(f"tu producto {product['name']} ah sido eliminado por el administrator "
+        seller_user = await client.fetch_user(product.user_id)
+        await seller_user.send(f"tu producto {product.title} ah sido eliminado por el administrator "
                                f"{ctx.author.name}, id {ctx.author .id}")
 
-        await ctx.author.send(f"has eliminado el producto {product['name']}, del usuario {seller_user.name}, id"
+        await ctx.author.send(f"has eliminado el producto {product.title}, del usuario {seller_user.name}, id"
                               f" {seller_user.id}")
     else:
         await send_message(ctx, "no puedes eliminar este producto", 0, True)
@@ -335,35 +316,31 @@ async def get_products_in_shop(ctx: Context):
     Args:
         ctx (Context): Context de Discord
     """
-
-    balance = query("user_id", ctx.author.id, ctx.guild,
-                    CollectionNames.balances.value)
+    database_name = get_database_name(ctx.guild)
+    balance = query("_id", ctx.author.id, database_name,
+                    CollectionNames.users.value)
     if balance is None:
         await send_message(ctx, f"no estas registrado, registrate con {global_settings.prefix}registro")
         return
 
-    products = query_all(ctx.guild, CollectionNames.shop.value)
-
+    products = core.store.get_user_products(ctx.author.id, database_name)
     embed = discord.Embed(colour=discord.colour.Color.gold(), title="Productos Encontrados",
                           description=f"tabla de productos del usuario {ctx.author.name}")
 
-    product_found = False
-    for product in products:
-        if product["user_id"] == ctx.author.id:
-            product_found = True
-            embed.add_field(
-                name=f"{product['name']}",
-                value=f"ID:{product['_id']}, Precio: {product['price']}")
-
-    if product_found is False:
+    if len(products) == 0:
         embed.add_field(name="Nada", value="ningun producto fue encontrado")
+
+    for product in products:
+        embed.add_field(
+            name=f"{product.title}",
+            value=f"ID:{product.id}, Precio: {product.price}")
 
     await ctx.channel.send(embed=embed)
 
 
 @client.command(name="usuario")
 async def get_user_by_name(ctx: Context, *, _user: str):
-    """Comando para buscar todos los usuarios que empiexen por _user
+    """Comando para buscar todos los usuarios que empiecen por _user
 
     Args:
         ctx (Context): Context de Discord
@@ -371,26 +348,20 @@ async def get_user_by_name(ctx: Context, *, _user: str):
     """
 
     database_name = get_database_name(ctx.guild)
-    users = query_all(database_name, CollectionNames.users.value)
-    user_founds = 0
-
     if _user.startswith("@"):
         _user = _user[1:len(_user)]
 
+    users = core.users.get_users_starting_with(_user, database_name)
     embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados",
                           description=f"tabla de todos los usuarios que inician con el nombre especificado")
 
-    for user in users:
-        if user["name"].casefold().startswith(_user.casefold()):
-            user_founds += 1
-
-            embed.add_field(
-                name=f"{user['name']}",
-                value=f"ID:{user['_id']}\nmonedas:{user['balance']}")
-
-    if user_founds == 0:
-        user_founds += 1
+    if len(users) == 0:
         embed.add_field(name="Nada", value="ningun usuario fue encontrado")
+
+    for user in users:
+        embed.add_field(
+            name=f"{user.name}",
+            value=f"ID:{user.id}\nmonedas:{user.balance}")
 
     await ctx.channel.send(embed=embed)
 
@@ -403,8 +374,9 @@ async def validate_transaction(ctx: Context, _id: str):
         ctx (Context): Context de Discord
         _id (float): Cantidad de monedas a imprimir
     """
-
-    transaction = query_id(_id, ctx.guild, CollectionNames.transactions.value)
+    database_name = get_database_name(ctx.guild)
+    transaction = query_id(
+        _id, database_name, CollectionNames.transactions.value)
 
     if transaction is None:
         await send_message(ctx, "id invalido")
@@ -582,27 +554,29 @@ async def init_economy(ctx: Context):
             name=f"{user['name']}",
             value=f"ID:{user['_id']}\nmonedas:{user['balance']}")
 
-    currency_tb = await ctx.channel.send(embed=embed)
+    # currency_tb = await ctx.channel.send(embed=embed)
+    await ctx.channel.send(embed=embed)
 
     while core.economy_management.forge_coins(database_name):
         # TODO: futuro algoritmo de generacion de monedas
         # Esperar para generar monedas, 900=15min
-        await asyncio.sleep(10)
+        await asyncio.sleep(2)
 
         random_user = db_utils.get_random_user(database_name)
         random_user.balance += 1
 
         # TODO: Log del forjado (DISCUSION)
 
-        embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
-                              description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
-        users = query_all(ctx.guild, CollectionNames.balances.value)
-        for user in users:
-            embed.add_field(
-                name=f"{user['user_name']}",
-                value=f"ID:{user['user_id']}\nmonedas:{user['balance']}")
+        # Pide toda la base de datos y puede ser muy pesado pedirla en cada forjado
+        # embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
+        #                       description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
+        # users = query_all(database_name, CollectionNames.users.value)
+        # for user in users:
+        #     embed.add_field(
+        #         name=f"{user['name']}",
+        #         value=f"ID:{user['_id']}\nmonedas:{user['balance']}")
 
-        await currency_tb.edit(embed=embed, content="")
+        # await currency_tb.edit(embed=embed, content="")
 
         await send_message(ctx, f"se le ha asignado a {random_user.name}", "Nueva Moneda")
 
