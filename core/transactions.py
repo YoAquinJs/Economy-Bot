@@ -6,7 +6,7 @@ from models.logs import *
 from models.enums import TransactionStatus
 
 
-def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float, database_name: str, channel_name: str) -> Tuple[TransactionStatus, str]:
+def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float, database_name: str, channel_name: str, type: str = 'transferencia') -> Tuple[TransactionStatus, str]:
     """Hace una transaccion entre usuarios
 
     Args:
@@ -45,7 +45,7 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
 
     # # Se hace el log de la transaccion
     transaction_log = TransactionLog(
-        get_time(), 'transferencia', sender, receptor, quantity, channel_name)
+        get_time(), type, sender, receptor, quantity, channel_name)
     transaccion_id = transaction_log.send_log_to_db(database_name)
 
     return TransactionStatus.succesful, transaccion_id

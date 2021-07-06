@@ -1,12 +1,14 @@
 """Discord Events"""
 
+from core.transactions import new_transaction
+from models.economy_user import EconomyUser
 import discord
 from discord.ext import commands
 
 from bot.bot_utils import *
 from utils.utils import get_global_settings
 from bot.discord_client import get_client
-from database.db_utils import insert, modify, exists, query, delete, CollectionNames
+from database.db_utils import exists, query, delete, CollectionNames
 
 client = get_client()
 global_settings = get_global_settings()
@@ -92,44 +94,25 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             return
         else:
             quantity = product["price"]
-            buyer_balance = query("_id", payload.member.id,
-                                  database_name, CollectionNames.users.value)
-            seller_balance = query("_id", seller_user.id,
-                                   database_name, CollectionNames.users.value)
+
+            buyer_euser = EconomyUser(payload.member.id, database_name)
+            seller_euser = EconomyUser(seller_user.id, database_name)
 
             # Si el comprador esta registrado
-            if buyer_balance is not None:
+            if buyer_euser.get_data_from_db():
                 # Si el comprador tiene suficientes monedas
-                if buyer_balance['balance'] >= quantity:
+                if buyer_euser.balance.value >= quantity:
                     # if economic_users[author_key]["coins"] >= quantity:
-
-                    buyer_balance['balance'] -= quantity
-                    modify("_id", buyer_balance['_id'], "balance", buyer_balance['balance'], database_name,
-                           CollectionNames.users.value)
-
-                    seller_balance['balance'] += quantity
-                    modify("_id", seller_balance['_id'], "balance", seller_balance['balance'], database_name,
-                           CollectionNames.users.value)
-
-                    sale = {
-                        # "date": get_time(),
-                        "type": "compra en tienda",
-                        "sender_id": buyer_balance['_id'],
-                        "receiver_id": seller_balance['_id'],
-                        "quantity": quantity,
-                        "product_name": product["title"],
-                        "product_id": product["_id"]
-                    }
-
-                    transaction = insert(
-                        sale, database_name, CollectionNames.transactions.value)
-
+                    _, transaction = new_transaction(
+                        buyer_euser, seller_euser, quantity, database_name, channel.name, 'compra en tienda')
+                    
+                    
                     await payload.member.send(f"has adquirido el producto: {product['title']}, del usuario: "
                                               f"{seller_user.name}; id: {seller_user.id}\n"
-                                              f"id transaccion: {transaction.inserted_id}")
+                                              f"id transaccion: {transaction}")
                     await seller_user.send(f"el usuario: {payload.member.name}; id: {payload.member.id} ha adquirido tu "
                                            f"producto: {product['title']}, debes cumplir con la entrega\n"
-                                           f"id transaccion: {transaction.inserted_id}")
+                                           f"id transaccion: {transaction}")
                 else:
                     await payload.member.send("no tienes suficientes monedas")
             else:
