@@ -1,41 +1,31 @@
 """El módulo db_utils contiene metodos que acceden y modifican datos en la base de datos de MongoDB"""
 
-import discord
-from enum import Enum
 from bson.objectid import ObjectId
+
+from models.economy_user import EconomyUser
+from models.enums import CollectionNames
 
 from database.mongo_client import get_mongo_client
 
 _mongo_client = get_mongo_client()
 
 
-class Collection(Enum):
-    bugs = "bugs"
-    shop = "shop"
-    forge = "forge"
-    deregisters = "deregisters"
-    balances = "balances"
-    transactions = "transactions"
-
-
-def insert(file: dict, guild: discord.Guild, collection: str):
+def insert(file: dict, database_name: str, collection: str):
     """Inserta un archivo a la base de datos de Mongo
 
         Args:
                 file (dict): Diccionario con los datos de un log
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colection a ingresar el archivo
 
         Returns:
                 pymongo.results.InsertOneResult: Contiene la información de la inserción en MongoDB
     """
 
-    database_name = get_database_name(guild)
-
     return _mongo_client[database_name][collection].insert_one(file)
 
 
-def modify(key: str, value, modify_key: str, modify_value, guild: discord.Guild, collection: str):
+def modify(key: str, value, modify_key: str, modify_value, database_name: str, collection: str):
     """Modifica un archivo con la llave y valor especificados en la base de datos de Mongo
 
         Args:
@@ -43,67 +33,59 @@ def modify(key: str, value, modify_key: str, modify_value, guild: discord.Guild,
                 value (indeterminado): Valor a comparar
                 modify_key (dict): Nueva llave a cambiar
                 modify_value (indeterminado): Nuevo valor a cambiar
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colection a ingresar el archivo
 
         Returns:
                 pymongo.results.UpdateOneResult: Contiene la información de la modificacion en MongoDB
     """
 
-    database_name = get_database_name(guild)
-
     return _mongo_client[database_name][collection].update_one({key: value}, {"$set": {modify_key: modify_value}})
 
 
-def delete(key: str, value, guild: discord.Guild, collection: str):
+def delete(key: str, value, database_name: str, collection: str):
     """Elimina un archivo en la base de datos de Mongo
 
         Args:
                 key (str): Llave a comparar
                 value (indeterminado): Valor a comparar
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colection a ingresar el archivo
 
         Returns:
                 pymongo.results.DeleteResult: Contiene la información de la eliminacion en MongoDB
     """
 
-    database_name = get_database_name(guild)
-
     return _mongo_client[database_name][collection].delete_one({key: value})
 
 
-def query(key: str, value, guild: discord.Guild, collection: str):
+def query(key: str, value, database_name: str, collection: str):
     """Obtiene un archivo en la base de datos de Mongo
 
         Args:
                 key (str): llave a buscar
                 value (indeterminado): valor de la llave a buscar
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
                 dict: Archivo encontrado o None si no existe
     """
 
-    database_name = get_database_name(guild)
-
     return _mongo_client[database_name][collection].find_one({key: value})
 
 
-def query_id(file_id: str, guild: discord.Guild, collection: str):
+def query_id(file_id: str, database_name: str, collection: str):
     """Obtiene un archivo por su id en la base de datos de Mongo
 
         Args:
                 file_id (str): id del archivo
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
                 dict: Es un diccionario con la transacción o None si no la encuentra
     """
-
-    database_name = get_database_name(guild)
 
     try:
         return _mongo_client[database_name][collection].find_one({"_id": ObjectId(file_id)})
@@ -111,36 +93,32 @@ def query_id(file_id: str, guild: discord.Guild, collection: str):
         return None
 
 
-def query_all(guild: discord.Guild, collection: str):
+def query_all(database_name: str, collection: str):
     """Obtiene todos los archivos en la coleccion especificada en la base de datos de Mongo
 
         Args:
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
                 pymongo.cursor.Cursor: Clase iterable sobre Mongo query results de todos los archivos en la coleccion
     """
 
-    database_name = get_database_name(guild)
-
     return _mongo_client[database_name][collection].find({})
 
 
-def exists(key: str, value, guild: discord.Guild, collection: str):
+def exists(key: str, value, database_name: str, collection: str):
     """Revisa la existencia de un archivo en la base de datos de Mongo
 
         Args:
                 key (str): Llave a comparar
                 value (indeterminado): Valor a comparar
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
                 pymongo.cursor.Cursor: Clase iterable sobre Mongo query results de todos los archivos en la coleccion
     """
-
-    database_name = get_database_name(guild)
 
     for file in _mongo_client[database_name][collection].find({}):
         if file[key] == value:
@@ -149,57 +127,30 @@ def exists(key: str, value, guild: discord.Guild, collection: str):
     return False
 
 
-def get_database_name(guild: discord.Guild) -> str:
-    """Esta función genera el nombre de la base de datos de una guild de discord
+def get_random_user(database_name: str) -> EconomyUser:
+    """Obtiene un _id aleatorio de un usuario en la base de datos de Mongo
 
         Args:
-                guild (discord.Guild): Es la información de una Guild de discord
-
-        Returns:
-                str: Nombre único de la base de datos para el server de discord
-    """
-
-    name = guild.name
-    if len(name) > 20:
-        # Esta comprobacion se hace porque mongo no acepta nombres de base de datos mayor a 64 caracteres
-        name = name.replace("a", "")
-        name = name.replace("e", "")
-        name = name.replace("i", "")
-        name = name.replace("o", "")
-        name = name.replace("u", "")
-
-        if len(name) > 20:
-            name = name[:20]
-
-    return f'{name.replace(" ", "_")}_{guild.id}'
-
-
-def query_rnd(guild: discord.Guild, collection: str):
-    """Obtiene un archivo aleatorio en la base de datos de Mongo
-
-        Args:
-                guild (discord.Guild): Es la información de una Guild de discord
+                database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
                 dict: Es un diccionario con la informacion del archivo
     """
 
-    database_name = get_database_name(guild)
-
-    cursor = _mongo_client[database_name][collection].aggregate([
+    cursor = _mongo_client[database_name][CollectionNames.users.value].aggregate([
         {"$match": {"start_time": {"$exists": False}}},
         {"$sample": {"size": 1}}
     ])
 
-    rnd = None
+    rnd_data = None
     for i in cursor:
-        rnd = i
+        rnd_data = i
 
-    return rnd
+    random_user = EconomyUser(rnd_data['_id'], database_name)
+    random_user.get_data_from_dict(rnd_data)
+    return random_user
 
 
-def delete_database_guild(guild: discord.Guild):
-    database_name = get_database_name(guild)
-
+def delete_database_guild(database_name: str):
     _mongo_client.drop_database(database_name)

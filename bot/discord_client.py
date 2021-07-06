@@ -2,7 +2,7 @@
 
 import discord
 from discord.ext import commands
-from bot.bot_utils import get_global_settings
+from utils.utils import get_global_settings
 
 client = None
 
@@ -17,8 +17,8 @@ def init_client():
     intents = discord.Intents.default()
     intents.members = True
 
-    client = commands.Bot(command_prefix=global_settings["prefix"], help_command=None,
-                          activity=discord.Game(f"Economy Bot | {global_settings['prefix']}ayuda"),
+    client = commands.Bot(command_prefix=global_settings.prefix, help_command=None,
+                          activity=discord.Game(f"Economy Bot | {global_settings.prefix}ayuda"),
                           status=discord.Status.online, intents=intents)
 
 

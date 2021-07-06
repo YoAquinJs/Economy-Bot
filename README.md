@@ -9,6 +9,8 @@ Hay que crear un archivo con el nombre de settings.json y debe contener:
   "mongoPassword": "Contraseña de la base de datos"
   "dev_ids": ["ids de desarrolladores string"],
   "max_decimals": int
+  "economy_name": "Migala-Economy",
+  "coin_name": "discord-tao"
 }
 ``` 
 

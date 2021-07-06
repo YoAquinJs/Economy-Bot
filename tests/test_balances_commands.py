@@ -1,4 +1,3 @@
-from tests.balances_simulations import *
 import pytest
 import discord.ext.test as dpytest
 from discord import Permissions
@@ -6,41 +5,48 @@ from discord import Permissions
 from bot.commands import *
 from bot.events import *
 from bot.discord_client import get_client
+from bot.bot_utils import get_database_name
 
+from tests.balances_simulations import *
 from database import db_utils
+from utils.utils import get_global_settings
 
 
 admin_user = None
 admin_member = None
 guild = None
+database_name = ''
+global_settings = get_global_settings()
 
 
 @pytest.fixture
 async def bot(event_loop):
-    global admin_user, admin_member, guild
+    global admin_user, admin_member, guild, database_name
 
     bot = get_client()
     bot.loop = event_loop
 
     dpytest.configure(bot)
     guild = dpytest.get_config().guilds[0]
-    db_utils.delete_database_guild(guild)
+
+    database_name = get_database_name(guild)
+    db_utils.delete_database_guild(database_name)
 
     admin_user = dpytest.backend.make_user(username='Admin', discrim=1)
     admin_member = dpytest.backend.make_member(admin_user, guild)
     admin_role = await guild.create_role(name="Admin", permissions=Permissions.all())
     await admin_member.add_roles(admin_role)
 
-    return bot
+    yield bot
+    db_utils.delete_database_guild(database_name)
 
 
 @pytest.mark.asyncio
 async def test_registro(bot):
 
     msg = await simulate_registration(dpytest, admin_member)
-    desired_msg = f'has sido añadido a la bonobo-economy {admin_member.display_name}, tienes 0.0 monedas'
+    desired_msg = f'has sido añadido a la {global_settings.economy_name} {admin_member.display_name}, tienes 0.0 {global_settings.coin_name}'
 
-    db_utils.delete_database_guild(guild)
     assert desired_msg == msg
 
 
@@ -48,14 +54,12 @@ async def test_registro(bot):
 async def test_desregistro(bot):
 
     msg = await simulate_registration(dpytest, admin_member)
-    desired_msg = f'has sido añadido a la bonobo-economy {admin_member.display_name}, tienes 0.0 monedas'
+    desired_msg = f'has sido añadido a la {global_settings.economy_name} {admin_member.display_name}, tienes 0.0 {global_settings.coin_name}'
     assert desired_msg == msg
 
     msg = await simulate_desregistration(dpytest, admin_member)
-    desired_msg = f'te has des registrado de la bonobo-economy {admin_member.display_name}, lamentamos tu des registro'
+    desired_msg = f'te has des registrado de la {global_settings.economy_name} {admin_member.display_name}, lamentamos tu des registro'
     assert desired_msg == msg
-
-    db_utils.delete_database_guild(guild)
 
 
 @pytest.mark.asyncio
@@ -67,10 +71,9 @@ async def test_imprimir(bot):
     assert print_embed_desc == desired_print_embed_desc
 
     monedas_embed_desc = await simulate_ver_monedas(dpytest, admin_member)
-    desired_monedas_embed_desc = f'tienes 200.0 bonobo coins {admin_user.name}'
+    desired_monedas_embed_desc = f'tienes 200.0 {global_settings.coin_name} {admin_user.name}'
 
     assert monedas_embed_desc == desired_monedas_embed_desc
-    db_utils.delete_database_guild(guild)
 
 
 @pytest.mark.asyncio
@@ -82,7 +85,7 @@ async def test_expropiar(bot):
     assert print_embed_desc == desired_print_embed_desc
 
     monedas_embed_desc = await simulate_ver_monedas(dpytest, admin_member)
-    desired_monedas_embed_desc = f'tienes 200.0 bonobo coins {admin_user.name}'
+    desired_monedas_embed_desc = f'tienes 200.0 {global_settings.coin_name} {admin_user.name}'
 
     assert monedas_embed_desc == desired_monedas_embed_desc
 
@@ -92,11 +95,9 @@ async def test_expropiar(bot):
     assert expropiar_embed_desc == desired_expropiar_embed_desc
 
     monedas_embed_desc = await simulate_ver_monedas(dpytest, admin_member)
-    desired_monedas_embed_desc = f'tienes 189.25 bonobo coins {admin_user.name}'
+    desired_monedas_embed_desc = f'tienes 189.25 {global_settings.coin_name} {admin_user.name}'
 
     assert monedas_embed_desc == desired_monedas_embed_desc
-
-    db_utils.delete_database_guild(guild)
 
 
 @pytest.mark.asyncio
@@ -118,16 +119,15 @@ async def test_transferir(bot):
 
     # Ver si salen las cuentas en el admin
     balance_admin = await simulate_ver_monedas(dpytest, admin_member)
-    desired_balance_admin = f'tienes 149.5 bonobo coins {admin_user.name}'
+    desired_balance_admin = f'tienes 149.5 {global_settings.coin_name} {admin_user.name}'
 
     assert balance_admin == desired_balance_admin
 
     # ver si salen las cuentas del usuario test
     balance_test = await simulate_ver_monedas(dpytest, test_member)
-    desired_balance_test = f'tienes 50.5 bonobo coins {test_user.name}'
+    desired_balance_test = f'tienes 50.5 {global_settings.coin_name} {test_user.name}'
 
     assert balance_test == desired_balance_test
-    db_utils.delete_database_guild(guild)
 
 
 @pytest.mark.asyncio
@@ -156,4 +156,3 @@ async def test_buscar_usuarios(bot):
 
     assert dpytest.embed_eq(embed, desired_embed)
 
-    db_utils.delete_database_guild(guild)

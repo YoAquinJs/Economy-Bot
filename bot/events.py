@@ -4,8 +4,9 @@ import discord
 from discord.ext import commands
 
 from bot.bot_utils import *
+from utils.utils import get_global_settings
 from bot.discord_client import get_client
-from database.db_utils import insert, modify, exists, query, delete, Collection
+from database.db_utils import insert, modify, exists, query, delete, CollectionNames
 
 client = get_client()
 global_settings = get_global_settings()
@@ -61,13 +62,13 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     guild = client.get_guild(payload.guild_id)
 
     if payload.member.bot or \
-       exists("msg_id", payload.message_id, guild, Collection.shop.value) is False:
+       exists("msg_id", payload.message_id, guild, CollectionNames.shop.value) is False:
         return
 
     channel = discord.utils.get(client.get_guild(payload.guild_id).channels, id=payload.channel_id)
     msg = await channel.fetch_message(payload.message_id)
 
-    product = query("msg_id", payload.message_id, guild, Collection.shop.value)
+    product = query("msg_id", payload.message_id, guild, CollectionNames.shop.value)
 
     await msg.remove_reaction(payload.emoji, payload.member)
 
@@ -76,7 +77,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
             payload.member.id != product["user_id"]:
         await msg.delete()
-        delete("msg_id", payload.message_id, guild, Collection.shop.value)
+        delete("msg_id", payload.message_id, guild, CollectionNames.shop.value)
 
         await payload.member.send(f"has eliminado el producto {product['name']}, del usuario {seller_user.name}, id"
                                   f" {seller_user.id}")
@@ -87,8 +88,8 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             return
         else:
             quantity = product["price"]
-            buyer_balance = query("user_id", payload.member.id, guild, Collection.balances.value)
-            seller_balance = query("user_id", seller_user.id, guild, Collection.balances.value)
+            buyer_balance = query("user_id", payload.member.id, guild, CollectionNames.balances.value)
+            seller_balance = query("user_id", seller_user.id, guild, CollectionNames.balances.value)
 
             # Si el comprador esta registrado
             if buyer_balance is not None:
@@ -98,14 +99,14 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
                     buyer_balance['balance'] -= quantity
                     modify("user_id", buyer_balance['user_id'], "balance", buyer_balance['balance'], guild,
-                           Collection.balances.value)
+                           CollectionNames.balances.value)
 
                     seller_balance['balance'] += quantity
                     modify("user_id", seller_balance['user_id'], "balance", seller_balance['balance'], guild,
-                           Collection.balances.value)
+                           CollectionNames.balances.value)
 
                     sale = {
-                        "date": get_time(),
+                        # "date": get_time(),
                         "type": "compra en tienda",
                         "sender_id": buyer_balance['user_id'],
                         "receiver_id": seller_balance['user_id'],
@@ -114,7 +115,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                         "product_id": product["_id"]
                     }
 
-                    transaction = insert(sale, guild, Collection.transactions.value)
+                    transaction = insert(sale, guild, CollectionNames.transactions.value)
 
                     await payload.member.send(f"has adquirido el producto: {product['name']}, del usuario: "
                                               f"{seller_user.name}; id: {seller_user.id}\n"
@@ -130,6 +131,6 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     else:
         if str(payload.emoji) == "❌":
             await msg.delete()
-            delete("msg_id", payload.message_id, guild, Collection.shop.value)
+            delete("msg_id", payload.message_id, guild, CollectionNames.shop.value)
 
             await seller_user.send(f"has eliminado tu producto {product['name']}")

@@ -1,24 +1,9 @@
 """Contiene multiples metodos los cuales son utilizados por otros modulos, principalmente commands.py e events.py"""
 
-import json
-import pytz
 import asyncio
 import discord
-import datetime
 
 current_dir = None
-_global_settings = None
-
-
-def get_time():
-    """Retorna el tiempo y hora actual en UTC
-
-    Returns:
-        srt: String Del Tiempo Actual
-    """
-
-    return str(datetime.datetime.now(pytz.utc))
-
 
 def key_split(key, split_ch="_"):
     """Separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se puedan identificar
@@ -46,7 +31,8 @@ async def send_message(ctx, text, title="", time=0, auto_time=False):
         auto_time (bool, optional): Especifica si despues de el tiempo de lectura promedio el mensaje sera eliminado,
         por defecto falso.
     """
-    msg_txt = discord.Embed(title=title, description=text, colour=discord.colour.Color.gold())
+    msg_txt = discord.Embed(title=title, description=text,
+                            colour=discord.colour.Color.gold())
     msg = await ctx.channel.send(embed=msg_txt)
 
     if auto_time is True:
@@ -64,17 +50,26 @@ async def send_message(ctx, text, title="", time=0, auto_time=False):
     return msg
 
 
-def get_global_settings() -> dict:
-    """Lee y parsea los settings.json a un diccionario de python
+def get_database_name(guild: discord.Guild) -> str:
+    """Esta función genera el nombre de la base de datos de una guild de discord
 
-    Returns:
-        dict: diccionario con los settings.json
+        Args:
+                guild (discord.Guild): Es la información de una Guild de discord
+
+        Returns:
+                str: Nombre único de la base de datos para el server de discord
     """
 
-    global _global_settings
+    name = guild.name
+    if len(name) > 20:
+        # Esta comprobacion se hace porque mongo no acepta nombres de base de datos mayor a 64 caracteres
+        name = name.replace("a", "")
+        name = name.replace("e", "")
+        name = name.replace("i", "")
+        name = name.replace("o", "")
+        name = name.replace("u", "")
 
-    if _global_settings is None:
-        with open("settings.json", "r") as tmp:
-            _global_settings = json.load(tmp)
+        if len(name) > 20:
+            name = name[:20]
 
-    return _global_settings
+    return f'{name.replace(" ", "_")}_{guild.id}'
