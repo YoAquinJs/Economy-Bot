@@ -1,6 +1,5 @@
 """Maneja, distribuye y crea el cliente de discord.py, el cliente representa la conexión con la API de discord y su websocket en un objeto de Python."""
 
-import requests
 import discord
 from discord.ext import commands
 from utils.utils import get_global_settings
@@ -14,8 +13,6 @@ def init_client():
 
     global client
     global_settings = get_global_settings()
-
-    requests.get()
 
     intents = discord.Intents.default()
     intents.members = True
