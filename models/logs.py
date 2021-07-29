@@ -81,7 +81,7 @@ class BugLog:
     description: str = ''
     command: str = ''
 
-    def __init__(self, title: str, description: str, command: str):
+    def __init__(self, description: str, command: str):
         """BogLog __init__
 
         Args:
@@ -90,7 +90,6 @@ class BugLog:
             command (str): comando que provoca el bug
         """
         
-        self.title = title
         self.description = description
         self.command = command
 

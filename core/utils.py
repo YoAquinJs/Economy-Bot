@@ -16,7 +16,7 @@ def send_unregistered_log(user: EconomyUser, database_name: str, motive: str):
     desregister_log.send_log_to_db(database_name)
 
 
-def report_bug_log(user_id: int, title: str, description: str, command: str, database_name: str) -> Tuple[bool, BugLog]:
+def report_bug_log(user_id: int, description: str, command: str, database_name: str) -> Tuple[bool, BugLog]:
     """Genera un log que reporta un bug a los desarrolladores
 
     Args:
@@ -34,7 +34,7 @@ def report_bug_log(user_id: int, title: str, description: str, command: str, dat
     exists_user = user.get_data_from_db()
 
     if exists_user:
-        bug = BugLog(title, description, command)
+        bug = BugLog(description, command)
         bug.send_log_to_db(database_name)
 
         return True, bug

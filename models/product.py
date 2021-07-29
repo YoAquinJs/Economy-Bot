@@ -17,13 +17,13 @@ class Product:
             description (str): descripcion del que vemde el producto
             price (float): precio del que vemde el producto
             database_name (str): nombre de la base de datos de mongo
-            id (int, optional): id del producto. Defaults to -1.
+            _id (int, optional): id del producto. Defaults to -1.
         """
         self._id = int(_id)
         self.user_id = user_id
         self.title = title
         self.description = description
-        self.price = round(price, global_settings.max_decimals)
+        self.price = round(float(price), int(global_settings.max_decimals))
         self.database_name = database_name
 
     @classmethod
@@ -41,7 +41,7 @@ class Product:
         data = db_utils.query('_id', product_id, database_name,
                               CollectionNames.shop.value)
 
-        if data == None:
+        if data is None:
             return None, False
 
         return cls(
@@ -94,12 +94,12 @@ class Product:
 
         return None
 
-    def modify_on_db(self, new_price=0.0, new_title='0', new_description='0'):
-        if new_price != 0.0:
+    def modify_on_db(self, new_price, new_title, new_description):
+        if new_price != 0:
             self.price = new_price
-        if new_title != '0':
+        if new_title != '_':
             self.title = new_title
-        if new_description != '0':
+        if new_description != '_':
             self.description = new_description
 
         data = {

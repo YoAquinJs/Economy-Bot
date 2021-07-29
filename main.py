@@ -20,7 +20,7 @@ print("Disconnected")
 
 """ anaconda commands
 cd documents\codeprojects\economy-bot
-conda activate bonoboenv
+conda activate economyenv
 python main.py 
 """
 
