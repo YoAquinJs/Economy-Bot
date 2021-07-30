@@ -68,8 +68,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
        exists("_id", payload.message_id, database_name, CollectionNames.shop.value) is False:
         return
 
-    channel = discord.utils.get(client.get_guild(
-        payload.guild_id).channels, id=payload.channel_id)
+    channel = discord.utils.get(client.get_guild(payload.guild_id).channels, id=payload.channel_id)
     msg = await channel.fetch_message(payload.message_id)
 
     product = query("_id", payload.message_id, database_name,
@@ -99,22 +98,21 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             seller_euser = EconomyUser(seller_user.id, database_name)
 
             # Si el comprador esta registrado
-            if buyer_euser.get_data_from_db():
+            if buyer_euser.user_exists():
                 # Si el comprador tiene suficientes monedas
                 if buyer_euser.balance.value >= quantity:
                     # if economic_users[author_key]["coins"] >= quantity:
-                    _, transaction = new_transaction(
+                    na, transaction = new_transaction(
                         buyer_euser, seller_euser, quantity, database_name, channel.name, 'compra en tienda')
-                    
-                    
-                    await payload.member.send(f"has adquirido el producto: {product['title']}, del usuario: "
-                                              f"{seller_user.name}; id: {seller_user.id}\n"
-                                              f"id transaccion: {transaction}")
-                    await seller_user.send(f"el usuario: {payload.member.name}; id: {payload.member.id} ha adquirido tu "
-                                           f"producto: {product['title']}, debes cumplir con la entrega\n"
-                                           f"id transaccion: {transaction}")
+
+                    await payload.member.send(f"Has adquirido el producto: {product['title']}\n"
+                                              f"Vendedor: {seller_user.name} ID: {seller_user.id}\n"
+                                              f"ID transaccion: {transaction}")
+                    await seller_user.send(f"Compra del Comprador: {payload.member.name} ID: {payload.member.id}"
+                                           f"Producto: {product['title']}, cumple con la entrega\n"
+                                           f"ID transaccion: {transaction}")
                 else:
-                    await payload.member.send("no tienes suficientes monedas")
+                    await payload.member.send("No tienes suficientes monedas")
             else:
                 await payload.member.send(f"no estas registrado, registrate con {global_settings.prefix}registro")
             pass

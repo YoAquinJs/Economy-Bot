@@ -31,7 +31,7 @@ def report_bug_log(user_id: int, description: str, command: str, database_name: 
     """
 
     user = EconomyUser(user_id, database_name=database_name)
-    exists_user = user.get_data_from_db()
+    exists_user = user.user_exists()
 
     if exists_user:
         bug = BugLog(description, command)

@@ -1,5 +1,6 @@
 """El módulo db_utils contiene metodos que acceden y modifican datos en la base de datos de MongoDB"""
 
+from bson.objectid import ObjectId
 from models.economy_user import EconomyUser
 from models.enums import CollectionNames
 
@@ -86,7 +87,7 @@ def query_id(file_id: str, database_name: str, collection: str):
     """
 
     try:
-        return _mongo_client[database_name][collection].find_one({"_id": file_id})
+        return _mongo_client[database_name][collection].find_one({"_id": ObjectId(file_id)})
     except:
         return None
 

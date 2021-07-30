@@ -101,7 +101,7 @@ async def register(ctx: SlashContext):
     registered = new_user.register()
     if registered:
         await ctx.send(f'Has sido añadido a la {global_settings.economy_name} {new_user.name}, tienes '
-                       f'{new_user.balance} {global_settings.coin_name}')
+                       f'{global_settings.initial_number_of_coins} {global_settings.coin_name}')
     else:
         await ctx.send(f'{new_user.name} ya estas registrado')
 
@@ -109,7 +109,7 @@ async def register(ctx: SlashContext):
 @slash.slash(name="desregistro", guild_ids=guild_ids, description=f"Elimina del registro al usuario",
              options=[
               create_option(name="motivo", description="motivo del desregistro", option_type=3, required=False)],
-             connector={"comando": "command", "informacion": "info"})
+             connector={"motivo": "motive"})
 async def de_register(ctx: SlashContext, motive="nulo"):
     """ Comando para que un usuario se des registre, su balance se elimina de la base de datos de Mongo
 
@@ -121,11 +121,16 @@ async def de_register(ctx: SlashContext, motive="nulo"):
     db_name = get_database_name(ctx.guild)
     user = EconomyUser(ctx.author.id, db_name)
 
-    if user.get_data_from_db():
-        # TODO: Checar si tiene productos en la tienda
-        user.unregister()
-        core.utils.send_unregistered_log(user, db_name, motive)
-        await ctx.send(f'{user.name} has salido de la {global_settings.economy_name}, lamentamos tu partida')
+    if user.user_exists():
+        database_name = get_database_name(ctx.guild)
+        products = core.store.get_user_products(ctx.author.id, database_name)
+
+        if len(products) > 0:
+            user.unregister()
+            core.utils.send_unregistered_log(user, db_name, motive)
+            await ctx.send(f'{user.name} has salido de la {global_settings.economy_name}, lamentamos tu partida')
+        else:
+            await ctx.send(f'El usuario posee productos, primero elimina todos tus productos')
     else:
         await ctx.send(f'Usuario no registrado. Registrate con {global_settings.prefix}registro.')
 
@@ -146,7 +151,7 @@ async def transference(ctx: SlashContext, quantity: float, receptor: discord.Mem
         receptor (discord.Member): Mención a un usuario de discord
     """
     database_name = get_database_name(ctx.guild)
-    channel_name = ctx.message.channel.name
+    channel_name = discord.utils.get(client.get_guild(ctx.guild_id).channels, id=ctx.channel_id).name
 
     sender = EconomyUser(ctx.author.id, database_name, name=ctx.author.name, roles=[
         rol.name for rol in ctx.author.roles if rol.name != "@everyone"])
@@ -169,11 +174,11 @@ async def transference(ctx: SlashContext, quantity: float, receptor: discord.Mem
     elif status == TransactionStatus.succesful:
         await ctx.send("Transacción completada.")
         await ctx.author.send(f"Le transferiste al usuario {receptor.name}, ID: {receptor.id}, {quantity} "
-                              f"{global_settings.coin_name}, tu saldo actual es de {sender.balance} {global_settings.coin_name}.\n"
+                              f"{global_settings.coin_name}, tu saldo actual es de {sender.get_balance_from_db()['balance']} {global_settings.coin_name}.\n"
                               f"ID de transaccion: {transaction_id}")
 
         await receptor.send(f"El usuario {ctx.author.name}, ID: {ctx.author.id}, te ha transferido {quantity} "
-                            f"{global_settings.coin_name}, tu saldo actual es de {receptor_t.balance} {global_settings.coin_name}.\n"
+                            f"{global_settings.coin_name}, tu saldo actual es de {receptor_t.get_balance_from_db()['balance']} {global_settings.coin_name}.\n"
                             f"ID de transacción: {transaction_id}")
 
 
@@ -189,7 +194,7 @@ async def get_coins(ctx: SlashContext):
     database_name = get_database_name(ctx.guild)
     user = EconomyUser(ctx.author.id, database_name)
 
-    if user.get_data_from_db():
+    if user.user_exists():
         await ctx.send(f"Tu saldo actual es de {user.balance} {global_settings.coin_name} {ctx.author.name}.")
     else:
         await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.")
@@ -248,7 +253,7 @@ async def sell_product_in_shop(ctx: SlashContext, price: float, title: str, desc
               create_option(name="descripcion", description="nueva descripcion del producto",
                             option_type=3, required=False)],
              connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description"})
-async def edit_product_in_shop(ctx: SlashContext, _id: str, price=0, title='_', description='_'):
+async def edit_product_in_shop(ctx: SlashContext, _id: str, price=0, title="0", description="0"):
     """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
        haran cambios
 
@@ -283,7 +288,9 @@ async def edit_product_in_shop(ctx: SlashContext, _id: str, price=0, title='_', 
         await ctx.send("El precio no puede ser negativo.", delete_after=2)
         return
 
-    embed = discord.Embed(title=f"${price} {title}", description=f"Vendedor: {ctx.author.name}\n{description}",
+    product = query("_id", _id, database_name, CollectionNames.shop.value)
+
+    embed = discord.Embed(title=f"${product['price']} {product['title']}", description=f"Vendedor: {ctx.author.name}\n{product['description']}",
                           colour=discord.colour.Color.orange())
 
     msg = await ctx.channel.fetch_message(_id)
@@ -405,9 +412,9 @@ async def get_user_by_name(ctx: SlashContext, user: str):
 
 @slash.slash(name="validar", guild_ids=guild_ids, description="Valida una transaccion a partir de su ID",
              options=[
-              create_option(name="ID", description="Identificador de la transaccion",
+              create_option(name="id", description="Identificador de la transaccion",
                             option_type=3, required=True)],
-             connector={"ID": "_id"})
+             connector={"id": "_id"})
 async def validate_transaction(ctx: SlashContext, _id: str):
     """Comando para validar una transaccion a travez de su id.
 
@@ -422,8 +429,8 @@ async def validate_transaction(ctx: SlashContext, _id: str):
     if transaction is None:
         await ctx.send("ID invalido.")
     else:
-        sender_user = await client.fetch_user(transaction["sender_id"])
-        receiver_user = await client.fetch_user(transaction["receiver_id"])
+        sender_user = await client.fetch_user(transaction["sender"]["_id"])
+        receiver_user = await client.fetch_user(transaction["receiver"]["_id"])
         await ctx.channel.purge(limit=1)
         await ctx.author.send(f"Transacción {_id} válida")
         await ctx.author.send(embed=discord.Embed(title=f"${transaction['quantity']}",
@@ -448,23 +455,27 @@ async def help_cmd(ctx: SlashContext):
     embed.add_field(
         name=f"{client.command_prefix}registro",
         value="Registra una wallet con el nombre e id de tu usuario.",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}desregistro",
         value="Elimina del registro al usuario y su wallet correspondiente.",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}{global_settings.coin_name}",
-        value=f"Entrega la cantidad de {global_settings.coin_name} que posee usuario."
+        value=f"Entrega la cantidad de {global_settings.coin_name} que posee usuario.",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}usuarios *nombre*",
         value="Entrega una lista de usuarios registrados a partir del nombre especificado\n\n"
               f"Ingresar:\n"
-              "*nombre*: nombre del usuario a busacar (@usuario o usuario)"
+              "*nombre*: nombre del usuario a busacar (@usuario o usuario)",
+        inline=False
     )
 
     embed.add_field(
@@ -473,6 +484,7 @@ async def help_cmd(ctx: SlashContext):
               f"Ingresar:\n"
               f"*cantidad*: Cantidad de {global_settings.coin_name}.\n"
               f"*receptor*: Nombre del usuario receptor(@usuario o usuario).",
+        inline=False
     )
 
     embed.add_field(
@@ -482,6 +494,7 @@ async def help_cmd(ctx: SlashContext):
               f"*precio*: Cantidad de {global_settings.coin_name}\n"
               f"*título*: Título del producto\n"
               f"*descripción*: Descripción del producto",
+        inline=False
     )
 
     embed.add_field(
@@ -492,18 +505,21 @@ async def help_cmd(ctx: SlashContext):
               f"*precio*: (Opcional) Nueva cantidad de {global_settings.coin_name}\n"
               f"*título*: (Opcional) Nuevo título del producto\n"
               f"*descripcion*: (Opcional) Nueva descripcion del producto",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}delproducto *id*",
-        value="""Elimina un producto\n\n"
+        value="Elimina un producto\n\n"
               "Ingresar:\n"
-              "*id*: ID del producto""",
+              "*id*: ID del producto",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}productos",
-        value="""Busca tods los productos del usuario."""
+        value="""Busca tods los productos del usuario.""",
+        inline=False
     )
 
     embed.add_field(
@@ -511,6 +527,7 @@ async def help_cmd(ctx: SlashContext):
         value="Indica si una transacción es válida, a través de su ID\n\n"
               "Ingresar:\n"
               "*id*: Identificador de la transacción.",
+        inline=False
     )
 
     embed.add_field(
@@ -518,7 +535,8 @@ async def help_cmd(ctx: SlashContext):
         value="Reporta un error a los desarrolladores. Por favor úsese con moderación.\n\n"
               "Ingresar:\n"
               "*comando*: Comando que ocasionó el error\n"
-              "*info*: Descripcion o detalles del error"
+              "*info*: Descripcion o detalles del error",
+        inline=False
     )
 
     await ctx.send(embed=embed)
@@ -555,7 +573,7 @@ async def print_coins(ctx: SlashContext, quantity: float, receptor: discord.Memb
 
     database_name = get_database_name(ctx.guild)
     receptor_b = EconomyUser(receptor.id, database_name)
-    recipient_is_registered = receptor_b.get_data_from_db()
+    recipient_is_registered = receptor_b.user_exists()
     if not recipient_is_registered:
         await ctx.send(f"{receptor.name} no es un usuario registrado.")
         return
@@ -595,7 +613,7 @@ async def expropriate_coins(ctx: SlashContext, quantity: float, receptor: discor
 
     database_name = get_database_name(ctx.guild)
     receptor_b = EconomyUser(receptor.id, database_name)
-    recipient_is_registered = receptor_b.get_data_from_db()
+    recipient_is_registered = receptor_b.user_exists()
     if not recipient_is_registered:
         await ctx.send(f"{receptor.name} no es un usuario registrado")
         return
@@ -605,70 +623,70 @@ async def expropriate_coins(ctx: SlashContext, quantity: float, receptor: discor
     await ctx.send(f"se le expropiaron {quantity} monedas a {receptor_b.name}, id {receptor_b._id}")
 
 
-@slash.slash(name="stopforge", guild_ids=guild_ids, description="Detiene el forjado de monedas")
-@commands.has_permissions(administrator=True)
-async def stopforge(ctx: SlashContext):
-    """Detiene el forjado de monedas
-    Args:
-        ctx (SlashContext): Context de Discord
-    """
-
-    database_name = get_database_name(ctx.guild)
-    core.economy_management.stop_forge_coins(database_name)
-    await ctx.send("forjado de monedas detenido")
-
-
-@slash.slash(name="init", guild_ids=guild_ids, description="Inicia el forjado de monedas")
-@commands.has_permissions(administrator=True)
-async def init_economy(ctx: SlashContext):
-    """Con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario
-        random y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos, estos
-        logs deben ser extraidos del host para poder realizar las estadisticas del experimento
-    Args:
-        ctx (SlashContext): Context de Discord
-    """
-
-    await ctx.channel.purge(limit=1)
-
-    database_name = get_database_name(ctx.guild)
-    users = query_all(database_name, CollectionNames.users.value)
-    if users.count() == 0:
-        await ctx.send('No hay usuarios registrados')
-        return
-
-    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
-                          description=f"Tabla de los usuarios registrados, con su nombre, id y cantidad de {global_settings.coin_name}.")
-
-    for user in users:
-        embed.add_field(
-            name=f"{user['name']}",
-            value=f"ID:{user['_id']}\n{global_settings.coin_name}:{user['balance']}")
-
-    # currency_tb = await ctx.channel.send(embed=embed)
-    await ctx.send(embed=embed)
-
-    while core.economy_management.forge_coins(database_name):
-        # TODO: futuro algoritmo de generacion de monedas
-        # Esperar para generar monedas, 900=15min
-        await asyncio.sleep(2)
-
-        random_user = db_utils.get_random_user(database_name)
-        random_user.balance += 1
-
-        # TODO: Log del forjado (DISCUSION)
-
-        # Pide toda la base de datos y puede ser muy pesado pedirla en cada forjado
-        # embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
-        #                       description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
-        # users = query_all(database_name, CollectionNames.users.value)
-        # for user in users:
-        #     embed.add_field(
-        #         name=f"{user['name']}",
-        #         value=f"ID:{user['_id']}\nmonedas:{user['balance']}")
-
-        # await currency_tb.edit(embed=embed, content="")
-
-        await ctx.send(f"Nueva {global_settings.coin_name}, se le ha asignado a {random_user.name}")
+#@slash.slash(name="stopforge", guild_ids=guild_ids, description="Detiene el forjado de monedas")
+#@commands.has_permissions(administrator=True)
+#async def stopforge(ctx: SlashContext):
+#    """Detiene el forjado de monedas
+#    Args:
+#        ctx (SlashContext): Context de Discord
+#    """
+#
+#    database_name = get_database_name(ctx.guild)
+#    core.economy_management.stop_forge_coins(database_name)
+#    await ctx.send("forjado de monedas detenido")
+#
+#
+#@slash.slash(name="init", guild_ids=guild_ids, description="Inicia el forjado de monedas")
+#@commands.has_permissions(administrator=True)
+#async def init_economy(ctx: SlashContext):
+#    """Con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario
+#        random y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos, estos
+#        logs deben ser extraidos del host para poder realizar las estadisticas del experimento
+#    Args:
+#        ctx (SlashContext): Context de Discord
+#    """
+#
+#    await ctx.channel.purge(limit=1)
+#
+#    database_name = get_database_name(ctx.guild)
+#    users = query_all(database_name, CollectionNames.users.value)
+#    if users.count() == 0:
+#        await ctx.send('No hay usuarios registrados')
+#        return
+#
+#    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
+#                          description=f"Tabla de los usuarios registrados, con su nombre, id y cantidad de {global_settings.coin_name}.")
+#
+#    for user in users:
+#        embed.add_field(
+#            name=f"{user['name']}",
+#            value=f"ID:{user['_id']}\n{global_settings.coin_name}:{user['balance']}")
+#
+#    # currency_tb = await ctx.channel.send(embed=embed)
+#    await ctx.send(embed=embed)
+#
+#    while core.economy_management.forge_coins(database_name):
+#        # TODO: futuro algoritmo de generacion de monedas
+#        # Esperar para generar monedas, 900=15min
+#        await asyncio.sleep(2)
+#
+#        random_user = db_utils.get_random_user(database_name)
+#        random_user.balance += 1
+#
+#        # TODO: Log del forjado (DISCUSION)
+#
+#        # Pide toda la base de datos y puede ser muy pesado pedirla en cada forjado
+#        # embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
+#        #                       description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
+#        # users = query_all(database_name, CollectionNames.users.value)
+#        # for user in users:
+#        #     embed.add_field(
+#        #         name=f"{user['name']}",
+#        #         value=f"ID:{user['_id']}\nmonedas:{user['balance']}")
+#
+#        # await currency_tb.edit(embed=embed, content="")
+#
+#        await ctx.send(f"Nueva {global_settings.coin_name}, se le ha asignado a {random_user.name}")
 
 
 @slash.slash(name="reset", guild_ids=guild_ids, description="Pone en 0 todas las carteras")
@@ -693,38 +711,45 @@ async def admin_help_cmd(ctx: Context):
     Args:
         ctx (Context): Context de Discord
     """
+    await ctx.defer()
+
     embed = discord.Embed(title=f"Ayuda | ECONOMY BOT {client.command_prefix}help",
                           colour=discord.colour.Color.orange())
 
     embed.add_field(
         name=f"{client.command_prefix}imprimir *cantidad* *usuario*",
         value=f"Imprime la cantidad especificada de {global_settings.coin_name} y las asigna a la wallet del usuario.\n\n"
-              "Argumentos:\n"
+              f"Ingresar:\n"
               f"*cantidad*: Cantidad de {global_settings.coin_name} a imprimir\n"
               "*usuario*: Mención del usuario (@user)",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}expropiar",
         value=f"Elimina la cantidad especificada de {global_settings.coin_name} de la wallet del usuario.\n\n"
-              "Argumentos:\n"
+              f"Ingresar:\n"
               f"*cantidad*: Cantidad de {global_settings.coin_name} a expropiar\n"
               "*usuario*: Mención del usuario (@user)",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}init",
-        value=f"Inicializa el forgado de {global_settings.coin_name}."
+        value=f"Inicializa el forgado de {global_settings.coin_name}.",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}stopforge",
-        value=f"Detiene el forjado de {global_settings.coin_name}."
+        value=f"Detiene el forjado de {global_settings.coin_name}.",
+        inline=False
     )
 
     embed.add_field(
         name=f"{client.command_prefix}reset",
-        value="Pone los balances de todos los usuarios en 0."
+        value="Pone los balances de todos los usuarios en 0.",
+        inline=False
     )
 
     await ctx.send(embed=embed)

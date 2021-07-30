@@ -71,7 +71,24 @@ class EconomyUser():
         """Elimina al usuario de la base de datos"""
         self.dbcollection.delete_one({'_id': self._id})
 
-    def get_data_from_db(self) -> bool:
+    def get_balance_from_db(self) -> dict:
+        """Trae los datos del usuario de la base de datos
+
+        Returns:
+            dict: Retorna un diccionario con el balance del usuario en Mongo o None si no lo encuentra
+        """
+        # se pide el balance del usuario desde la base de datos
+        try:
+            db_result = self.dbcollection.find_one({'_id': self.id}, {'balance': 1, 'name': 1, '_id': False})
+            self.balance = Balance(db_result['balance'], self)
+            self.name = db_result['name']
+
+            return db_result
+        except:
+            return None
+
+
+    def user_exists(self) -> bool:
         """Trae los datos del usuario de la base de datos
 
         Returns:

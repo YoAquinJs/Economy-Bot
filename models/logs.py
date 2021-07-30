@@ -72,7 +72,7 @@ class TransactionLog:
         self.channel_name = channel_name
 
     def send_log_to_db(self, database_name: str):
-        db_utils.insert(self.__dict__, database_name, CollectionNames.transactions.value)
+        return db_utils.insert(self.__dict__, database_name, CollectionNames.transactions.value)
 
 
 class BugLog:

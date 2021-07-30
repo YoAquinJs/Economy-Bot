@@ -40,7 +40,6 @@ class Product:
         product_id = int(product_id)
         data = db_utils.query('_id', product_id, database_name,
                               CollectionNames.shop.value)
-
         if data is None:
             return None, False
 
@@ -95,11 +94,11 @@ class Product:
         return None
 
     def modify_on_db(self, new_price, new_title, new_description):
-        if new_price != 0:
+        if float(new_price) != 0:
             self.price = new_price
-        if new_title != '_':
+        if new_title != '0':
             self.title = new_title
-        if new_description != '_':
+        if new_description != '0':
             self.description = new_description
 
         data = {
@@ -112,7 +111,7 @@ class Product:
 
         m_client = get_mongo_client()
         m_client[self.database_name][CollectionNames.shop.value].replace_one({
-            '_id': self._id,
+            '_id': self._id
         }, data)
 
     def delete_on_db(self):

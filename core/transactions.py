@@ -21,15 +21,15 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
     """
 
     global_settings = get_global_settings()
-    quantity = round(quantity, global_settings.max_decimals)
+    quantity = round(float(quantity), global_settings.max_decimals)
 
     if quantity <= 0.0:
         return TransactionStatus.negative_quantity, ''
     if sender._id == receptor._id:
         return TransactionStatus.sender_is_receptor, ''
 
-    receptor_exists = receptor.get_data_from_db()
-    sender_exists = sender.get_data_from_db()
+    receptor_exists = receptor.user_exists()
+    sender_exists = sender.user_exists()
 
     if not sender_exists:
         return TransactionStatus.sender_not_exists, ''
@@ -46,6 +46,6 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
     # # Se hace el log de la transaccion
     transaction_log = TransactionLog(
         get_time(), type, sender, receptor, quantity, channel_name)
-    transaccion_id = transaction_log.send_log_to_db(database_name)
+    transaction_id = transaction_log.send_log_to_db(database_name).inserted_id
 
-    return TransactionStatus.succesful, transaccion_id
+    return TransactionStatus.succesful, transaction_id
