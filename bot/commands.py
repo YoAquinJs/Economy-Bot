@@ -143,7 +143,7 @@ async def de_register(ctx: SlashContext, motive="nulo"):
               create_option(name="receptor", description="mencion del usuario receptorr",
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "receptor": "receptor"})
-async def transference(ctx: SlashContext, quantity, receptor):
+async def transference(ctx: SlashContext, quantity, receptor: discord.Member):
     """Comando para transferir monedas de la wallet del usuario a otro usuario
 
     Args:
@@ -155,7 +155,6 @@ async def transference(ctx: SlashContext, quantity, receptor):
 
     try:
         quantity = round(float(quantity), global_settings.max_decimals)
-        receptor = discord.Member(receptor)
     except:
         raise BadArgument
 
@@ -215,9 +214,11 @@ async def get_coins(ctx: SlashContext):
               create_option(name="titulo", description=f"titulo del producto",
                             option_type=3, required=True),
               create_option(name="descripcion", description="descripcion del producto",
-                            option_type=3, required=True)],
-             connector={"precio": "price", "titulo": "title", "descripcion": "description"})
-async def sell_product_in_shop(ctx: SlashContext, price, title, description):
+                            option_type=3, required=True),
+              create_option(name="imagen", description=f"url de una imagen",
+                            option_type=3, required=False)],
+             connector={"precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image"})
+async def sell_product_in_shop(ctx: SlashContext, price, title, description, image="none"):
     """Comando para crear una interfaz de venta a un producto o servicio
 
     Args:
@@ -225,6 +226,7 @@ async def sell_product_in_shop(ctx: SlashContext, price, title, description):
         price (float): Precio del producto
         title (str): Título del producto
         description (str): Descripción del producto
+        image (str): Url de una imagen
     """
     await ctx.defer()
 
@@ -236,7 +238,7 @@ async def sell_product_in_shop(ctx: SlashContext, price, title, description):
     database_name = get_database_name(ctx.guild)
 
     new_product = Product(ctx.author.id, title,
-                          description, price, database_name)
+                          description, price, image, database_name)
     check = new_product.check_info()
     if check == ProductStatus.negative_quantity:
         await ctx.send("El precio de tu producto no puede ser cero ni negativo.", delete_after=2)
@@ -245,9 +247,13 @@ async def sell_product_in_shop(ctx: SlashContext, price, title, description):
         await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.`", delete_after=3)
         return
 
-    msg = await ctx.send(embed=discord.Embed(title=f"${price} {title}",
-                                             description=f"Vendedor: {ctx.author.name}\n{description}",
-                                             colour=discord.colour.Color.orange()))
+    embed = discord.Embed(title=f"${price} {title}", description=f"Vendedor: {ctx.author.name}\n{description}",
+                          colour=discord.colour.Color.orange())
+    if image != "none":
+        new_product.image = image
+        embed.set_image(url=image)
+
+    msg = await ctx.send(embed=embed)
     new_product.id = msg.id
     new_product.send_to_db()
 
@@ -265,9 +271,11 @@ async def sell_product_in_shop(ctx: SlashContext, price, title, description):
               create_option(name="titulo", description="nuevo titulo del producto",
                             option_type=3, required=False),
               create_option(name="descripcion", description="nueva descripcion del producto",
+                            option_type=3, required=False),
+              create_option(name="imagen", description=f"nueva url de una imagen (none para remover la imagen)",
                             option_type=3, required=False)],
-             connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description"})
-async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", description="0"):
+             connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image"})
+async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", description="0", image="0"):
     """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
        haran cambios
 
@@ -286,10 +294,9 @@ async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", descr
     except:
         raise BadArgument
 
-
     database_name = get_database_name(ctx.guild)
     status = core.store.edit_product(
-        _id, ctx.author.id, database_name, price, title, description)
+        _id, ctx.author.id, database_name, price, title, description, image)
 
     if status == ProductStatus.seller_does_not_exist:
         await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
@@ -307,6 +314,8 @@ async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", descr
 
     embed = discord.Embed(title=f"${product['price']} {product['title']}", description=f"Vendedor: {ctx.author.name}\n{product['description']}",
                           colour=discord.colour.Color.orange())
+    if product["image"] != "none":
+        embed.set_image(url=product["image"])
 
     msg = await ctx.channel.fetch_message(_id)
     await msg.edit(embed=embed)
@@ -572,7 +581,7 @@ async def help_cmd(ctx: SlashContext):
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "usuario": "receptor"})
 @commands.has_permissions(administrator=True)
-async def print_coins(ctx: SlashContext, quantity, receptor):
+async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
     Args:
@@ -580,10 +589,8 @@ async def print_coins(ctx: SlashContext, quantity, receptor):
         quantity (float): Cantidad de monedas a imprimir
         receptor (str): Mención al usuario receptor de las monedas
     """
-
     try:
         quantity = float(quantity)
-        receptor = discord.Member(receptor)
     except:
         raise BadArgument
 
@@ -613,7 +620,7 @@ async def print_coins(ctx: SlashContext, quantity, receptor):
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "usuario": "receptor"})
 @commands.has_permissions(administrator=True)
-async def expropriate_coins(ctx: SlashContext, quantity, receptor):
+async def expropriate_coins(ctx: SlashContext, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
 
     Args:
@@ -624,7 +631,6 @@ async def expropriate_coins(ctx: SlashContext, quantity, receptor):
 
     try:
         quantity = float(quantity)
-        receptor = discord.Member(receptor)
     except:
         raise BadArgument
 

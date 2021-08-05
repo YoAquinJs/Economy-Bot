@@ -8,7 +8,7 @@ global_settings = get_global_settings()
 
 
 class Product:
-    def __init__(self, user_id: int, title: str, description: str, price: float, database_name, _id: int = -1):
+    def __init__(self, user_id: int, title: str, description: str, price: float, image: str, database_name, _id: int = -1):
         """Product init
 
         Args:
@@ -24,6 +24,7 @@ class Product:
         self.title = title
         self.description = description
         self.price = price
+        self.image = image
         self.database_name = database_name
 
     @classmethod
@@ -48,6 +49,7 @@ class Product:
             data['title'],
             data['description'],
             data['price'],
+            data["image"],
             database_name,
             data['_id']
         ), True
@@ -70,7 +72,8 @@ class Product:
             'user_id': self.user_id,
             'price': self.price,
             'title': self.title,
-            'description': self.description
+            'description': self.description,
+            'image': self.image
         }
         db_utils.insert(data, self.database_name, CollectionNames.shop.value)
 
@@ -93,20 +96,23 @@ class Product:
 
         return None
 
-    def modify_on_db(self, new_price, new_title, new_description):
+    def modify_on_db(self, new_price, new_title, new_description, new_image):
         if float(new_price) != 0:
             self.price = new_price
         if new_title != '0':
             self.title = new_title
         if new_description != '0':
             self.description = new_description
+        if new_image != '0':
+            self.image = new_image
 
         data = {
             '_id': self._id,
             'user_id': self.user_id,
             'price': self.price,
             'title': self.title,
-            'description': self.description
+            'description': self.description,
+            "image": self.image
         }
 
         m_client = get_mongo_client()

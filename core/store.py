@@ -8,7 +8,7 @@ from models.enums import CollectionNames, ProductStatus
 global_settings = get_global_settings()
 
 
-def edit_product(product_id: int, user_id: int, database_name: str, new_price, new_title, new_description) -> ProductStatus:
+def edit_product(product_id: int, user_id: int, database_name: str, new_price, new_title, new_description, new_image) -> ProductStatus:
     """Edita un producto, si son valores por default ese campo no se edita
 
     Args:
@@ -37,7 +37,7 @@ def edit_product(product_id: int, user_id: int, database_name: str, new_price, n
     if new_price < 0.0:
         return ProductStatus.negative_quantity
 
-    product.modify_on_db(new_price, new_title, new_description)
+    product.modify_on_db(new_price, new_title, new_description, new_image)
     return ProductStatus.succesful
 
 
