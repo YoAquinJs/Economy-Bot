@@ -87,7 +87,6 @@ class EconomyUser():
         except:
             return None
 
-
     def user_exists(self) -> bool:
         """Trae los datos del usuario de la base de datos
 

@@ -23,7 +23,7 @@ class Product:
         self.user_id = user_id
         self.title = title
         self.description = description
-        self.price = round(float(price), int(global_settings.max_decimals))
+        self.price = price
         self.database_name = database_name
 
     @classmethod

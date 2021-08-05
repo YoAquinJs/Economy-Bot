@@ -54,6 +54,29 @@ async def on_command_error(ctx, error):
 
 
 @client.event
+async def on_slash_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        return
+
+    msg = "ha ocurrido un error"
+    if isinstance(error, commands.BadArgument):
+        msg = f"{msg}, un argumento no es valido"
+    elif isinstance(error, commands.MissingPermissions):
+        msg = f"{msg}, no tienes permisos para realizar esta accion"
+    elif isinstance(error, commands.BotMissingPermissions):
+        msg = f"{msg}, de bot no tiene permisos para realizar esta accion"
+    else:
+        errormsg = f"exception in {ctx.command.name}: {error}"
+        print(errormsg)
+        for dev_id in global_settings.dev_ids:
+            dev = await client.fetch_user(dev_id)
+            await dev.send(f"BUG REPORT: {errormsg}")
+        msg = f"{msg}, ah sido reportado a los desarrolladores"
+
+    await ctx.send(msg)
+
+
+@client.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     """Sirve para controlar el sistema de la tienda del bot a través de reacciones.
 

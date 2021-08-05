@@ -1,4 +1,5 @@
 """Registra todos los comandos del bot"""
+import discord
 
 from models.product import Product
 from database import db_utils
@@ -142,7 +143,7 @@ async def de_register(ctx: SlashContext, motive="nulo"):
               create_option(name="receptor", description="mencion del usuario receptorr",
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "receptor": "receptor"})
-async def transference(ctx: SlashContext, quantity: float, receptor: discord.Member):
+async def transference(ctx: SlashContext, quantity, receptor):
     """Comando para transferir monedas de la wallet del usuario a otro usuario
 
     Args:
@@ -150,6 +151,14 @@ async def transference(ctx: SlashContext, quantity: float, receptor: discord.Mem
         quantity (float): Cantidad a transferir
         receptor (discord.Member): Mención a un usuario de discord
     """
+    await ctx.defer()
+
+    try:
+        quantity = round(float(quantity), global_settings.max_decimals)
+        receptor = discord.Member(receptor)
+    except:
+        raise BadArgument
+
     database_name = get_database_name(ctx.guild)
     channel_name = discord.utils.get(client.get_guild(ctx.guild_id).channels, id=ctx.channel_id).name
 
@@ -176,7 +185,6 @@ async def transference(ctx: SlashContext, quantity: float, receptor: discord.Mem
         await ctx.author.send(f"Le transferiste al usuario {receptor.name}, ID: {receptor.id}, {quantity} "
                               f"{global_settings.coin_name}, tu saldo actual es de {sender.get_balance_from_db()['balance']} {global_settings.coin_name}.\n"
                               f"ID de transaccion: {transaction_id}")
-
         await receptor.send(f"El usuario {ctx.author.name}, ID: {ctx.author.id}, te ha transferido {quantity} "
                             f"{global_settings.coin_name}, tu saldo actual es de {receptor_t.get_balance_from_db()['balance']} {global_settings.coin_name}.\n"
                             f"ID de transacción: {transaction_id}")
@@ -209,7 +217,7 @@ async def get_coins(ctx: SlashContext):
               create_option(name="descripcion", description="descripcion del producto",
                             option_type=3, required=True)],
              connector={"precio": "price", "titulo": "title", "descripcion": "description"})
-async def sell_product_in_shop(ctx: SlashContext, price: float, title: str, description: str):
+async def sell_product_in_shop(ctx: SlashContext, price, title, description):
     """Comando para crear una interfaz de venta a un producto o servicio
 
     Args:
@@ -219,6 +227,12 @@ async def sell_product_in_shop(ctx: SlashContext, price: float, title: str, desc
         description (str): Descripción del producto
     """
     await ctx.defer()
+
+    try:
+        price = round(float(price), global_settings.max_decimals)
+    except:
+        raise BadArgument
+
     database_name = get_database_name(ctx.guild)
 
     new_product = Product(ctx.author.id, title,
@@ -253,13 +267,13 @@ async def sell_product_in_shop(ctx: SlashContext, price: float, title: str, desc
               create_option(name="descripcion", description="nueva descripcion del producto",
                             option_type=3, required=False)],
              connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description"})
-async def edit_product_in_shop(ctx: SlashContext, _id: str, price=0, title="0", description="0"):
+async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", description="0"):
     """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
        haran cambios
 
     Args:
         ctx (SlashContext): Context de Discord
-        _id (str): Id del producto
+        _id (int): Id del producto
         price (float): Precio del producto, valor por defecto 0
         title (str): "Descripción del producto, valor por defecto _
         description (str): Título del producto, valor por defecto _
@@ -267,10 +281,11 @@ async def edit_product_in_shop(ctx: SlashContext, _id: str, price=0, title="0", 
     await ctx.defer()
 
     try:
-        price = float(price)
+        price = round(float(price), global_settings.max_decimals)
         _id = int(_id)
     except:
         raise BadArgument
+
 
     database_name = get_database_name(ctx.guild)
     status = core.store.edit_product(
@@ -302,17 +317,22 @@ async def edit_product_in_shop(ctx: SlashContext, _id: str, price=0, title="0", 
 
 @slash.slash(name="delproducto", guild_ids=guild_ids, description="Elimina un producto",
              options=[
-              create_option(name="id", description="identificador del producto",
+              create_option(name="id", description="identificador del producto (el id solo debe contener numeros)",
                             option_type=3, required=True)],
              connector={"id": "_id"})
-async def del_product_in_shop(ctx: SlashContext, _id: int):
+async def del_product_in_shop(ctx: SlashContext, _id):
     """Comando para eliminar una interfaz de venta a un producto o servicio
 
     Args:
         ctx (SlashContext): Context de Discord
-        _id (str): Id del producto en la base de datos
+        _id (int): Id del producto en la base de datos
     """
     await ctx.defer()
+
+    try:
+        _id = int(_id)
+    except:
+        raise BadArgument
 
     database_name = get_database_name(ctx.guild)
     product, product_exists = Product.from_database(_id, database_name)
@@ -383,7 +403,7 @@ async def get_products_in_shop(ctx: SlashContext):
               create_option(name="nombre", description="nombre del usuario a busacar (@usuario o usuario)",
                             option_type=3, required=True)],
              connector={"nombre": "user"})
-async def get_user_by_name(ctx: SlashContext, user: str):
+async def get_user_by_name(ctx: SlashContext, user):
     """Comando para buscar todos los usuarios que empiecen por _user
 
     Args:
@@ -415,7 +435,7 @@ async def get_user_by_name(ctx: SlashContext, user: str):
               create_option(name="id", description="Identificador de la transaccion",
                             option_type=3, required=True)],
              connector={"id": "_id"})
-async def validate_transaction(ctx: SlashContext, _id: str):
+async def validate_transaction(ctx: SlashContext, _id):
     """Comando para validar una transaccion a travez de su id.
 
     Args:
@@ -552,7 +572,7 @@ async def help_cmd(ctx: SlashContext):
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "usuario": "receptor"})
 @commands.has_permissions(administrator=True)
-async def print_coins(ctx: SlashContext, quantity: float, receptor: discord.Member):
+async def print_coins(ctx: SlashContext, quantity, receptor):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
     Args:
@@ -563,6 +583,7 @@ async def print_coins(ctx: SlashContext, quantity: float, receptor: discord.Memb
 
     try:
         quantity = float(quantity)
+        receptor = discord.Member(receptor)
     except:
         raise BadArgument
 
@@ -592,7 +613,7 @@ async def print_coins(ctx: SlashContext, quantity: float, receptor: discord.Memb
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "usuario": "receptor"})
 @commands.has_permissions(administrator=True)
-async def expropriate_coins(ctx: SlashContext, quantity: float, receptor: discord.Member):
+async def expropriate_coins(ctx: SlashContext, quantity, receptor):
     """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
 
     Args:
@@ -603,6 +624,7 @@ async def expropriate_coins(ctx: SlashContext, quantity: float, receptor: discor
 
     try:
         quantity = float(quantity)
+        receptor = discord.Member(receptor)
     except:
         raise BadArgument
 

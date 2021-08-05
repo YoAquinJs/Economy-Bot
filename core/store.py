@@ -34,7 +34,6 @@ def edit_product(product_id: int, user_id: int, database_name: str, new_price, n
     if product.user_id != user_id:
         return ProductStatus.user_is_not_seller_of_product
 
-    new_price = round(new_price, global_settings.max_decimals)
     if new_price < 0.0:
         return ProductStatus.negative_quantity
 

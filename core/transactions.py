@@ -21,7 +21,6 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
     """
 
     global_settings = get_global_settings()
-    quantity = round(float(quantity), global_settings.max_decimals)
 
     if quantity <= 0.0:
         return TransactionStatus.negative_quantity, ''
@@ -34,7 +33,7 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
     if not sender_exists:
         return TransactionStatus.sender_not_exists, ''
     if not receptor_exists:
-        return TransactionStatus.receptor_not_exists_not_exists, ''
+        return TransactionStatus.receptor_not_exists, ''
 
     if sender.balance.value < quantity:
         return TransactionStatus.insufficient_coins, ''
