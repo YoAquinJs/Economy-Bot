@@ -68,6 +68,8 @@ async def report_bug(ctx: SlashContext, command: str, info: str):
         info (str): Titulo"/"descripcion del bug
 
     """
+    await ctx.defer()
+
     database_name = get_database_name(ctx.guild)
 
     work_successful, bug = core.utils.report_bug_log(
@@ -75,7 +77,7 @@ async def report_bug(ctx: SlashContext, command: str, info: str):
     if work_successful:
         for dev_id in global_settings.dev_ids:
             dev = await client.fetch_user(dev_id)
-            await dev.send(f"BUG REPORT: {bug.__dict__}")
+            await dev.send(f"BUG REPORT: {bug.__dict__}, User_ID: {ctx.author.id}")
 
         await ctx.send("reportado")
         await ctx.author.send("Gracias por reportar un bug, intentaremos solucionarlo lo antes posible.\n"
@@ -94,6 +96,7 @@ async def register(ctx: SlashContext):
     Args:
         ctx (SlashContext): Context de discord
     """
+    await ctx.defer()
 
     db_name = get_database_name(ctx.guild)
     new_user = EconomyUser(ctx.author.id, db_name,
@@ -118,6 +121,7 @@ async def de_register(ctx: SlashContext, motive="nulo"):
         ctx (SlashContext): Context de discord
         motive (str): Motivo del des registro, por defecto es nulo
     """
+    await ctx.defer()
 
     db_name = get_database_name(ctx.guild)
     user = EconomyUser(ctx.author.id, db_name)
@@ -125,7 +129,7 @@ async def de_register(ctx: SlashContext, motive="nulo"):
     if user.user_exists():
         database_name = get_database_name(ctx.guild)
         products = core.store.get_user_products(ctx.author.id, database_name)
-        print(len(products))
+
         if len(products) == 0:
             user.unregister()
             core.utils.send_unregistered_log(user, db_name, motive)
