@@ -26,7 +26,7 @@ from models.enums import ProductStatus, TransactionStatus
 
 client = get_client()
 slash = SlashCommand(client, sync_commands=True)
-guild_ids = [864333042842599444, 837859767308910612]
+guild_ids = [864333042842599444]
 global_settings = get_global_settings()
 
 
