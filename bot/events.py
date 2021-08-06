@@ -66,12 +66,15 @@ async def on_slash_command_error(ctx, error):
     elif isinstance(error, commands.BotMissingPermissions):
         msg = f"{msg}, de bot no tiene permisos para realizar esta accion"
     else:
-        errormsg = f"exception in {ctx.name}: {error}"
+        errormsg = f"exception in {ctx.name}: {error}, from user: {ctx.author.id}  "
         print(errormsg)
         for dev_id in global_settings.dev_ids:
             dev = await client.fetch_user(dev_id)
             await dev.send(f"BUG REPORT: {errormsg}")
         msg = f"{msg}, ah sido reportado a los desarrolladores"
+
+        await ctx.send(msg)
+        raise error
 
     await ctx.send(msg)
 

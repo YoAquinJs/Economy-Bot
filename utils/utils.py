@@ -46,3 +46,13 @@ def key_split(key, split_ch="_"):
         i = i + 1
 
     return [key[0:i], key[i+1:len(key)]]
+
+
+def round(num, decimals):
+    str_num = str(num)
+    dot_index = len(str_num)
+    for i in range(len(str_num)):
+        if str_num[i] == ".":
+            dot_index = i
+            break
+    return float(str_num[0:dot_index + abs(decimals) + 1])
