@@ -736,7 +736,6 @@ async def admin_help_cmd(ctx: Context):
     Args:
         ctx (Context): Context de Discord
     """
-    await ctx.defer()
 
     embed = discord.Embed(title=f"Ayuda | ECONOMY BOT {client.command_prefix}help",
                           colour=discord.colour.Color.orange())
