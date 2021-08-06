@@ -573,13 +573,7 @@ async def help_cmd(ctx: SlashContext):
 """Admin Commands"""
 
 
-@slash.slash(name="imprimir", guild_ids=guild_ids, description="imprime monedas de la nada y se las asigna a un usuario",
-             options=[
-              create_option(name="cantidad", description=f"Cantidad de {global_settings.coin_name} a imprimir",
-                            option_type=3, required=True),
-              create_option(name="usuario", description="mencion del usuario (@user)",
-                            option_type=6, required=True)],
-             connector={"cantidad": "quantity", "usuario": "receptor"})
+@client.command(name="imprimir")
 @commands.has_permissions(administrator=True)
 async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
@@ -612,13 +606,7 @@ async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
                             f"ID {receptor_b._id}")
 
 
-@slash.slash(name="expropiar", guild_ids=guild_ids, description="Le expropia monedas a un usuario",
-             options=[
-              create_option(name="cantidad", description=f"Cantidad de {global_settings.coin_name} a exporpiar",
-                            option_type=3, required=True),
-              create_option(name="usuario", description="Mencion del usuario (@user).",
-                            option_type=6, required=True)],
-             connector={"cantidad": "quantity", "usuario": "receptor"})
+@client.command(name="expropiar")
 @commands.has_permissions(administrator=True)
 async def expropriate_coins(ctx: SlashContext, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
@@ -717,7 +705,7 @@ async def expropriate_coins(ctx: SlashContext, quantity, receptor: discord.Membe
 #        await ctx.send(f"Nueva {global_settings.coin_name}, se le ha asignado a {random_user.name}")
 
 
-@slash.slash(name="reset", guild_ids=guild_ids, description="Pone en 0 todas las carteras")
+@client.command(name="reset")
 @commands.has_permissions(administrator=True)
 async def reset_economy(ctx: SlashContext):
     """Pone los balances de todos los usuarios en 0, Requiere permisos de administrador
@@ -731,7 +719,7 @@ async def reset_economy(ctx: SlashContext):
     await ctx.send(f"todos los usuarios tienen 0 {global_settings.coin_name}")
 
 
-@slash.slash(name="adminayuda", guild_ids=guild_ids, description="Muestra los comandos disponibles para admins")
+@client.command(name="adminayuda")
 @commands.has_permissions(administrator=True)
 async def admin_help_cmd(ctx: Context):
     """Retorna la lista de comandos disponibles para los admins, Manda un mensaje con la información de los comandos del
