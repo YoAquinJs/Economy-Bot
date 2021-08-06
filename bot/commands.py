@@ -49,7 +49,7 @@ async def ping_chek(ctx: Context):
     Args:
         ctx (Context): Context de discord
     """
-    await send_message(ctx, f"Latencia: {round(client.latency * 1000)}ms")
+    await send_message(ctx, f"Latencia: {int(round(client.latency * 1000, 0))}ms")
 
 
 @slash.slash(name="bug", guild_ids=guild_ids, description="reporta un bug del bot a los desarrolladores",
@@ -125,8 +125,8 @@ async def de_register(ctx: SlashContext, motive="nulo"):
     if user.user_exists():
         database_name = get_database_name(ctx.guild)
         products = core.store.get_user_products(ctx.author.id, database_name)
-
-        if len(products) > 0:
+        print(len(products))
+        if len(products) == 0:
             user.unregister()
             core.utils.send_unregistered_log(user, db_name, motive)
             await ctx.send(f'{user.name} has salido de la {global_settings.economy_name}, lamentamos tu partida')
@@ -358,8 +358,11 @@ async def del_product_in_shop(ctx: SlashContext, _id):
 
     if product.user_id == ctx.author.id:
         product.delete_on_db()
-        msg = await ctx.channel.fetch_message(product.id)
-        await msg.delete()
+        try:
+            msg = await ctx.channel.fetch_message(product.id)
+            await msg.delete()
+        except:
+            pass
         await ctx.author.send(f"El producto {product.title} ha sido eliminado exitosamente.")
         await ctx.send("Eliminado.", delete_after=2)
 
@@ -385,6 +388,8 @@ async def get_products_in_shop(ctx: SlashContext):
     Args:
         ctx (SlashContext): Context de Discord
     """
+    await ctx.defer()
+
     database_name = get_database_name(ctx.guild)
     balance = query("_id", ctx.author.id, database_name,
                     CollectionNames.users.value)

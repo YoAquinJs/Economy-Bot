@@ -4,7 +4,7 @@ from database import db_utils
 from database.db_utils import CollectionNames
 
 
-_forge: Mapping[str, bool] = {}
+_forge = {}
 
 
 def forge_coins(database_name):
