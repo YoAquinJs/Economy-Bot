@@ -8,6 +8,10 @@ class CollectionNames(Enum):
     deregisters = "deregisters"
     users = "users"
     transactions = "transactions"
+    bugs_bl = "bugs_bl"
+    shop_bl = "shop_bl"
+    register_bl = "register_bl"
+    transactions_bl = "transactions_bl"
 
 
 class TransactionStatus(Enum):
@@ -29,3 +33,11 @@ class ProductStatus(Enum):
     user_is_not_seller_of_product = 'user_is_not_seller_of_product'
     no_exists_in_db = 'no_exists_in_db'
     succesful = 'succesful'
+
+
+class BlackLists(Enum):
+    register = "r"
+    bug_report = "b"
+    shop = "s"
+    transactions = "t"
+

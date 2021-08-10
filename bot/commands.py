@@ -2,16 +2,12 @@
 import discord
 
 from models.product import Product
-from database import db_utils
-from models.economy_user import EconomyUser
 from discord.ext import commands
 from discord.ext.commands import Context, BadArgument
 from discord_slash import SlashCommand, SlashContext
-from discord_slash.utils.manage_commands import create_choice, create_option
-
+from discord_slash.utils.manage_commands import create_option
 
 from database.db_utils import *
-from utils.utils import get_global_settings
 from bot.discord_client import get_client
 from bot.bot_utils import *
 
@@ -20,9 +16,10 @@ import core.utils
 import core.transactions
 import core.store
 import core.users
+import core.black_list
 
 from utils.utils import *
-from models.enums import ProductStatus, TransactionStatus
+from models.enums import ProductStatus, TransactionStatus, BlackLists
 
 client = get_client()
 slash = SlashCommand(client, sync_commands=True)
@@ -71,6 +68,11 @@ async def report_bug(ctx: SlashContext, command: str, info: str):
     await ctx.defer()
 
     database_name = get_database_name(ctx.guild)
+    if core.black_list.user_in_black_list(ctx.author.id, "r", database_name) is not None:
+        await ctx.send("No puedes reportar bugs ya que estas en la lista negra.")
+        return
+
+    database_name = get_database_name(ctx.guild)
 
     work_successful, bug = core.utils.report_bug_log(
         ctx.author.id, info, command, database_name)
@@ -98,6 +100,11 @@ async def register(ctx: SlashContext):
     """
     await ctx.defer()
 
+    database_name = get_database_name(ctx.guild)
+    if core.black_list.user_in_black_list(ctx.author.id, "r", database_name) is not None:
+        await ctx.send("No puedes registrarte ya que estas en la lista negra.")
+        return
+
     db_name = get_database_name(ctx.guild)
     new_user = EconomyUser(ctx.author.id, db_name,
                            name=ctx.author.name)
@@ -105,7 +112,8 @@ async def register(ctx: SlashContext):
     registered = new_user.register()
     if registered:
         await ctx.send(f'Has sido añadido a la {global_settings.economy_name} {new_user.name}, tienes '
-                       f'{global_settings.initial_number_of_coins} {global_settings.coin_name}')
+                       f'{global_settings.initial_number_of_coins} {global_settings.coin_name}\n'
+                       f'Escribe */ayuda* para informacion mas detalla de como interactuar con el bot')
     else:
         await ctx.send(f'{new_user.name} ya estas registrado')
 
@@ -161,6 +169,11 @@ async def transference(ctx: SlashContext, quantity, receptor: discord.Member):
         quantity = round(float(quantity), global_settings.max_decimals)
     except:
         raise BadArgument
+
+    database_name = get_database_name(ctx.guild)
+    if core.black_list.user_in_black_list(ctx.author.id, "t", database_name) is not None:
+        await ctx.send("No puedes realizar la transferencia ya que estas en la lista negra.")
+        return
 
     database_name = get_database_name(ctx.guild)
     channel_name = discord.utils.get(client.get_guild(ctx.guild_id).channels, id=ctx.channel_id).name
@@ -241,6 +254,11 @@ async def sell_product_in_shop(ctx: SlashContext, price, title, description, ima
         price = round(float(price), global_settings.max_decimals)
     except:
         raise BadArgument
+
+    database_name = get_database_name(ctx.guild)
+    if core.black_list.user_in_black_list(ctx.author.id, "s", database_name) is not None:
+        await ctx.send("No puedes registrar productos ya que estas en la lista negra.")
+        return
 
     database_name = get_database_name(ctx.guild)
 
@@ -592,9 +610,30 @@ async def help_cmd(ctx: SlashContext):
 """Admin Commands"""
 
 
+@client.command(name="listanegra")
+@commands.has_permissions(administrator=True)
+async def black_list(ctx: Context, user: discord.Member, black_l: str):
+    """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
+
+    Args:
+        ctx (SlashContext): Context de Discord
+        user (discord.member): Mencion del usuario
+        black_l (str): Sistema del bot
+    """
+
+    database_name = get_database_name(ctx.guild)
+    action = core.black_list.toggle_user_in_black_list(ctx.author.id, black_l, database_name)
+
+    if action == None:
+        await ctx.send("Lista negra invalida, usa /adminayuda para ver las listas negras disponibles.")
+        return
+
+    await ctx.send(f"El usuario {user.display_name} ah sido {action} de la lista negra.")
+
+
 @client.command(name="imprimir")
 @commands.has_permissions(administrator=True)
-async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
+async def print_coins(ctx: Context, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
     Args:
@@ -627,7 +666,7 @@ async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
 
 @client.command(name="expropiar")
 @commands.has_permissions(administrator=True)
-async def expropriate_coins(ctx: SlashContext, quantity, receptor: discord.Member):
+async def expropriate_coins(ctx: Context, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
 
     Args:
@@ -726,7 +765,7 @@ async def expropriate_coins(ctx: SlashContext, quantity, receptor: discord.Membe
 
 @client.command(name="reset")
 @commands.has_permissions(administrator=True)
-async def reset_economy(ctx: SlashContext):
+async def reset_economy(ctx: Context):
     """Pone los balances de todos los usuarios en 0, Requiere permisos de administrador
 
     Args:

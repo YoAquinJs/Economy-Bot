@@ -43,12 +43,13 @@ async def on_command_error(ctx, error):
         msg = f"{msg}, de bot no tiene permisos para realizar esta accion"
 
     else:
-        error = f"exception in {ctx.command.name}: {error}"
-        print(error)
+        error_msg = f"exception in {ctx.command.name}: {error}"
+        print(error_msg)
         for dev_id in global_settings.dev_ids:
             dev = await client.fetch_user(dev_id)
-            await dev.send(f"BUG REPORT: {error}")
+            await dev.send(f"BUG REPORT: {error_msg}")
         msg = f"{msg}, ah sido reportado a los desarrolladores"
+        raise error
 
     await send_message(ctx, msg)
 
