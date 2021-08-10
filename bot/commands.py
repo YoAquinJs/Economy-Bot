@@ -553,12 +553,14 @@ async def help_cmd(ctx: SlashContext):
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}producto *precio* *titulo* *descripcion*",
+        name=f"{client.command_prefix}producto *precio* *titulo* *descripcion* *imagen* *ventas maximas*",
         value=f"Crea una oferta de un producto en un mensaje, manejando la compra de este a travez de reacciones\n\n"
               f"Ingresar:\n"
               f"*precio*: Cantidad de {global_settings.coin_name}\n"
               f"*título*: Título del producto\n"
               f"*descripción*: Descripción del producto"
+              f"*imagen*: Url de una imagen "
+              f"(si envias una imagen por discord puedes copiar su link con click derecho, copy link)"
               f"*ventas maximas*: Ventas maximas del producto, una vez completadas se pondra el enunciado 'agotado'",
         inline=False
     )
