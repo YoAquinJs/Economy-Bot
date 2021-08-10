@@ -790,6 +790,15 @@ async def admin_help_cmd(ctx: Context):
                           colour=discord.colour.Color.orange())
 
     embed.add_field(
+        name=f"{client.command_prefix}listanegra",
+        value=f"Registra a un usuario a la lista negra especificada o lo elimina si ya se encuentra en esta.\n\n"
+              f"Ingresar:\n"
+              f"*usuario*: Mencion del usuario\n"
+              "*lista negra*: 4 posibles caracteres ('b': reporte de bugs, 'r': registro, 's': tienda, 't': transacciones)",
+        inline=False
+    )
+
+    embed.add_field(
         name=f"{client.command_prefix}imprimir *cantidad* *usuario*",
         value=f"Imprime la cantidad especificada de {global_settings.coin_name} y las asigna a la wallet del usuario.\n\n"
               f"Ingresar:\n"
