@@ -20,7 +20,9 @@ class TransactionStatus(Enum):
 
 
 class ProductStatus(Enum):
+    sold_out = 'sold_out'
     negative_quantity = 'negative_quantity'
+    negative_max_sells = 'negative_max_sells'
     not_name = 'not_name'
     seller_does_not_exist = 'seller_does_not_exist'
     no_id = 'no_id'

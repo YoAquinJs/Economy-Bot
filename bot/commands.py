@@ -180,9 +180,9 @@ async def transference(ctx: SlashContext, quantity, receptor: discord.Member):
     elif status == TransactionStatus.receptor_not_exists:
         await ctx.send(f"{receptor.name} no es un usuario registrado.")
     elif status == TransactionStatus.sender_is_receptor:
-        await ctx.send("Transferencia invalida. No puedes enviar {global_settings.coin_name} a ti mismo.")
+        await ctx.send(f"Transferencia invalida. No puedes enviar {global_settings.coin_name} a ti mismo.")
     elif status == TransactionStatus.insufficient_coins:
-        await ctx.send("Cantidad invalida. No tienes suficientes {global_settings.coin_name} para esta transacción.")
+        await ctx.send(f"Cantidad invalida. No tienes suficientes {global_settings.coin_name} para esta transacción.")
     elif status == TransactionStatus.succesful:
         await ctx.send("Transacción completada.")
         await ctx.author.send(f"Le transferiste al usuario {receptor.name}, ID: {receptor.id}, {quantity} "
@@ -220,9 +220,11 @@ async def get_coins(ctx: SlashContext):
               create_option(name="descripcion", description="descripcion del producto",
                             option_type=3, required=True),
               create_option(name="imagen", description=f"url de una imagen",
-                            option_type=3, required=False)],
-             connector={"precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image"})
-async def sell_product_in_shop(ctx: SlashContext, price, title, description, image="none"):
+                            option_type=3, required=False),
+              create_option(name="ventas_maximas", description=f"cantidad maxima de ventas (0 son ilimitadas, no se puede editar posteriormente)",
+                            option_type=4, required=False)],
+             connector={"precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image", "ventas_maximas": "max_sells"})
+async def sell_product_in_shop(ctx: SlashContext, price, title, description, image="none", max_sells=0):
     """Comando para crear una interfaz de venta a un producto o servicio
 
     Args:
@@ -231,6 +233,7 @@ async def sell_product_in_shop(ctx: SlashContext, price, title, description, ima
         title (str): Título del producto
         description (str): Descripción del producto
         image (str): Url de una imagen
+        max_sells (int): Numero maximo de ventas del producto
     """
     await ctx.defer()
 
@@ -242,19 +245,21 @@ async def sell_product_in_shop(ctx: SlashContext, price, title, description, ima
     database_name = get_database_name(ctx.guild)
 
     new_product = Product(ctx.author.id, title,
-                          description, price, image, database_name)
+                          description, price, image, max_sells, 0, [], database_name)
     check = new_product.check_info()
     if check == ProductStatus.negative_quantity:
         await ctx.send("El precio de tu producto no puede ser cero ni negativo.", delete_after=2)
         return
     elif check == ProductStatus.seller_does_not_exist:
-        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.`", delete_after=3)
+        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=3)
+        return
+    elif check == ProductStatus.negative_max_sells:
+        await ctx.send(f"La cantidad maxima de ventas no puede ser negativa", delete_after=3)
         return
 
-    embed = discord.Embed(title=f"${price} {title}", description=f"Vendedor: {ctx.author.name}\n{description}",
-                          colour=discord.colour.Color.orange())
+    embed = discord.Embed(title=f"${price} {title}", description=f"Vendedor: {ctx.author.name}\n{description}\nVentas: "
+                          f"{new_product.sells}", colour=discord.colour.Color.orange())
     if image != "none":
-        new_product.image = image
         embed.set_image(url=image)
 
     msg = await ctx.send(embed=embed)
@@ -287,8 +292,9 @@ async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", descr
         ctx (SlashContext): Context de Discord
         _id (int): Id del producto
         price (float): Precio del producto, valor por defecto 0
-        title (str): "Descripción del producto, valor por defecto _
-        description (str): Título del producto, valor por defecto _
+        title (str): "Descripción del producto, valor por defecto '0'
+        description (str): Título del producto, valor por defecto '0'
+        image (str): Url de la imagen, valor por defecto '0'
     """
     await ctx.defer()
 
@@ -313,11 +319,14 @@ async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", descr
     elif status == ProductStatus.negative_quantity:
         await ctx.send("El precio no puede ser negativo.", delete_after=2)
         return
+    elif status == ProductStatus.sold_out:
+        await ctx.send("Producto agotado, no puedes modificarlo mas.", delete_after=2)
+        return
 
     product = query("_id", _id, database_name, CollectionNames.shop.value)
 
-    embed = discord.Embed(title=f"${product['price']} {product['title']}", description=f"Vendedor: {ctx.author.name}\n{product['description']}",
-                          colour=discord.colour.Color.orange())
+    embed = discord.Embed(title=f"${product['price']} {product['title']}", description=f"Vendedor: {ctx.author.name}\n"
+                          f"{product['description']}\nVentas: {product['sells']}", colour=discord.colour.Color.orange())
     if product["image"] != "none":
         embed.set_image(url=product["image"])
 
@@ -357,7 +366,7 @@ async def del_product_in_shop(ctx: SlashContext, _id):
     balance = query("_id", ctx.author.id, database_name,
                     CollectionNames.users.value)
     if balance is None:
-        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", 2)
+        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
         return
 
     if product.user_id == ctx.author.id:
@@ -531,7 +540,8 @@ async def help_cmd(ctx: SlashContext):
               f"Ingresar:\n"
               f"*precio*: Cantidad de {global_settings.coin_name}\n"
               f"*título*: Título del producto\n"
-              f"*descripción*: Descripción del producto",
+              f"*descripción*: Descripción del producto"
+              f"*ventas maximas*: Ventas maximas del producto, una vez completadas se pondra el enunciado 'agotado'",
         inline=False
     )
 

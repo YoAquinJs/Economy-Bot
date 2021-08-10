@@ -8,7 +8,7 @@ from discord.ext import commands
 from bot.bot_utils import *
 from utils.utils import get_global_settings
 from bot.discord_client import get_client
-from database.db_utils import exists, query, delete, CollectionNames
+from database.db_utils import exists, query, delete, modify, CollectionNames
 
 client = get_client()
 global_settings = get_global_settings()
@@ -100,8 +100,6 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     product = query("_id", payload.message_id, database_name,
                     CollectionNames.shop.value)
 
-    await msg.remove_reaction(payload.emoji, payload.member)
-
     seller_user = await client.fetch_user(product["user_id"])
 
     if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
@@ -128,17 +126,37 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 # Si el comprador tiene suficientes monedas
                 if buyer_euser.balance.value >= quantity:
                     # if economic_users[author_key]["coins"] >= quantity:
-                    na, transaction = new_transaction(
-                        buyer_euser, seller_euser, quantity, database_name, channel.name, 'compra en tienda')
+                    if product["sells"] < product["max_sells"] or product["max_sells"] == 0:
+                        modify("_id", payload.message_id, "sells", product["sells"] + 1, database_name,
+                               CollectionNames.shop.value)
 
-                    await payload.member.send(f"Has adquirido el producto: {product['title']}\n"
-                                              f"Vendedor: {seller_user.name} ID: {seller_user.id}\n"
-                                              f"ID transaccion: {transaction}")
-                    await seller_user.send(f"Compra del Comprador: {payload.member.name} ID: {payload.member.id}"
-                                           f"Producto: {product['title']}, cumple con la entrega\n"
-                                           f"ID transaccion: {transaction}")
+                        sells_msg = f"{product['sells'] + 1}"
+                        if product["sells"] + 1 == product["max_sells"]:
+                            sells_msg += " *Agotado*"
+
+                        embed = discord.Embed(title=f"${product['price']} {product['title']}",
+                                              description=f"\nVendedor: {seller_user.name}\n{product['description']}\n"
+                                                          f"Ventas: {sells_msg}",
+                                              colour=discord.colour.Color.orange())
+                        if product["image"] != "none":
+                            embed.set_image(url=product["image"])
+
+                        await msg.edit(embed=embed)
+
+                        na, transaction = new_transaction(
+                            buyer_euser, seller_euser, quantity, database_name, channel.name, 'compra en tienda')
+
+                        await payload.member.send(f"Has adquirido el producto: {product['title']}\n"
+                                                  f"Vendedor: {seller_user.name} ID: {seller_user.id}\n"
+                                                  f"ID transaccion: {transaction}")
+                        await seller_user.send(f"Compra del Comprador: {payload.member.name} ID: {payload.member.id}"
+                                               f"Producto: {product['title']}, cumple con la entrega\n"
+                                               f"ID transaccion: {transaction}")
+                    else:
+                        await payload.member.send(f"El producto que deseas comprar ya esta agotado, lo sentimos "
+                                                  f"{payload.member.name}")
                 else:
-                    await payload.member.send("No tienes suficientes monedas")
+                    await payload.member.send(f"No tienes suficientes {global_settings.coin_name} para esta compra.")
             else:
                 await payload.member.send(f"no estas registrado, registrate con {global_settings.prefix}registro")
             pass
@@ -149,3 +167,5 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                    CollectionNames.shop.value)
 
             await seller_user.send(f"has eliminado tu producto {product['title']}")
+
+    await msg.remove_reaction(payload.emoji, payload.member)

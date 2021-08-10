@@ -18,7 +18,7 @@ def edit_product(product_id: int, user_id: int, database_name: str, new_price, n
         new_price (float, optional): nuevo precio. Defaults to 0.0.
         new_title (str, optional): nuevo titulo. Defaults to '0'.
         new_description (str, optional): nueva description. Defaults to '0'.
-
+        new_image (str, optional): nueva imagen. Defaults to 'none'
     Returns:
         ProductStatus: status de la modificacion
     """
@@ -37,7 +37,10 @@ def edit_product(product_id: int, user_id: int, database_name: str, new_price, n
     if new_price < 0.0:
         return ProductStatus.negative_quantity
 
-    product.modify_on_db(new_price, new_title, new_description, new_image)
+    if product.sells == product.max_sells and product.max_sells > 0:
+        return ProductStatus.sold_out
+
+    product.modify_on_db(new_price, new_title, new_description, new_image, product.sells)
     return ProductStatus.succesful
 
 

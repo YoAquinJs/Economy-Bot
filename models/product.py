@@ -1,3 +1,4 @@
+import utils.utils
 from database.mongo_client import get_mongo_client
 from typing import Union
 from models.enums import CollectionNames, ProductStatus
@@ -8,7 +9,8 @@ global_settings = get_global_settings()
 
 
 class Product:
-    def __init__(self, user_id: int, title: str, description: str, price: float, image: str, database_name, _id: int = -1):
+    def __init__(self, user_id: int, title: str, description: str, price: float, image: str, max_sells: int, sells: int,
+                 edits: list, database_name, _id: int = -1):
         """Product init
 
         Args:
@@ -16,6 +18,9 @@ class Product:
             title (str): Titulo del que vemde el producto
             description (str): descripcion del que vemde el producto
             price (float): precio del que vemde el producto
+            image (str): url de la imagen o 'none' si es nula
+            max_sells (int): maximo numero de ventas
+            edits (list): lista de ediciones del productos
             database_name (str): nombre de la base de datos de mongo
             _id (int, optional): id del producto. Defaults to -1.
         """
@@ -25,6 +30,9 @@ class Product:
         self.description = description
         self.price = price
         self.image = image
+        self.max_sells = max_sells
+        self.sells = sells
+        self.edits = edits
         self.database_name = database_name
 
     @classmethod
@@ -45,13 +53,16 @@ class Product:
             return None, False
 
         return cls(
-            data['user_id'],
-            data['title'],
-            data['description'],
-            data['price'],
+            data["user_id"],
+            data["title"],
+            data["description"],
+            data["price"],
             data["image"],
+            data["max_sells"],
+            data["sells"],
+            data["edits"],
             database_name,
-            data['_id']
+            data["_id"]
         ), True
 
     @classmethod
@@ -73,7 +84,10 @@ class Product:
             'price': self.price,
             'title': self.title,
             'description': self.description,
-            'image': self.image
+            'image': self.image,
+            'max_sells': self.max_sells,
+            'sells': self.sells,
+            'edits': self.edits
         }
         db_utils.insert(data, self.database_name, CollectionNames.shop.value)
 
@@ -89,6 +103,9 @@ class Product:
         if self.title == '' or None:
             return ProductStatus.not_name
 
+        if self.max_sells < 0:
+            return ProductStatus.negative_max_sells
+
         user_exists = db_utils.exists(
             '_id', self.user_id, self.database_name, CollectionNames.users.value)
         if not user_exists:
@@ -96,15 +113,22 @@ class Product:
 
         return None
 
-    def modify_on_db(self, new_price, new_title, new_description, new_image):
+    def modify_on_db(self, new_price, new_title, new_description, new_image, sells):
+        edit_log = f"{utils.utils.get_time()}: "
         if float(new_price) != 0:
+            edit_log += f"{new_price}, "
             self.price = new_price
         if new_title != '0':
+            edit_log += f"{new_title}, "
             self.title = new_title
         if new_description != '0':
+            edit_log += f"{new_description}, "
             self.description = new_description
         if new_image != '0':
+            edit_log += f"{new_image}, "
             self.image = new_image
+
+        self.edits.append(edit_log + f"Ventas: {sells}")
 
         data = {
             '_id': self._id,
@@ -112,7 +136,10 @@ class Product:
             'price': self.price,
             'title': self.title,
             'description': self.description,
-            "image": self.image
+            "image": self.image,
+            "max_sells": self.max_sells,
+            'sells': self.sells,
+            'edits': self.edits
         }
 
         m_client = get_mongo_client()
