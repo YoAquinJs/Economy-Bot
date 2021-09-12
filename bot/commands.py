@@ -49,8 +49,8 @@ async def ping_chek(ctx: Context):
     await send_message(ctx, f"Latencia: {int(round(client.latency * 1000, 0))}ms")
 
 
-@client.command(name="checkifawake")
-async def ping_chek(ctx: Context):
+@client.command(name="awake")
+async def is_awake(ctx: Context):
     """Confirma que el bot esta activo con una reacccion
 
     Args:
