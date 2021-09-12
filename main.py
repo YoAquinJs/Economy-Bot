@@ -21,7 +21,7 @@ print("Disconnected")
 """ anaconda commands
 cd documents\codeprojects\economy-bot
 conda activate economyenv
-python main.py 
+python main.py
 """
 
 """ heroku deply commands
