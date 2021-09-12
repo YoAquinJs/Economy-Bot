@@ -224,223 +224,223 @@ async def get_coins(ctx: SlashContext):
         await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.")
 
 
-@slash.slash(name="producto", guild_ids=guild_ids, description=f"Crea una oferta de un producto en un mensaje, manejando la compra de este a travéz de reacciones",
-             options=[
-              create_option(name="precio", description=f"precio en {global_settings.coin_name} del podcuto",
-                            option_type=3, required=True),
-              create_option(name="titulo", description=f"titulo del producto",
-                            option_type=3, required=True),
-              create_option(name="descripcion", description="descripcion del producto",
-                            option_type=3, required=True),
-              create_option(name="imagen", description=f"url de una imagen",
-                            option_type=3, required=False),
-              create_option(name="ventas_maximas", description=f"cantidad maxima de ventas (0 son ilimitadas, no se puede editar posteriormente)",
-                            option_type=4, required=False)],
-             connector={"precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image", "ventas_maximas": "max_sells"})
-async def sell_product_in_shop(ctx: SlashContext, price, title, description, image="none", max_sells=0):
-    """Comando para crear una interfaz de venta a un producto o servicio
-
-    Args:
-        ctx (SlashContext): Context de Discord
-        price (float): Precio del producto
-        title (str): Título del producto
-        description (str): Descripción del producto
-        image (str): Url de una imagen
-        max_sells (int): Numero maximo de ventas del producto
-    """
-    await ctx.defer()
-
-    try:
-        price = round(float(price), global_settings.max_decimals)
-    except:
-        raise BadArgument
-
-    database_name = get_database_name(ctx.guild)
-    if core.black_list.user_in_black_list(ctx.author.id, "s", database_name) is not None:
-        await ctx.send("No puedes registrar productos ya que estas en la lista negra.")
-        return
-
-    database_name = get_database_name(ctx.guild)
-
-    new_product = Product(ctx.author.id, title,
-                          description, price, image, max_sells, 0, [], database_name)
-    check = new_product.check_info()
-    if check == ProductStatus.negative_quantity:
-        await ctx.send("El precio de tu producto no puede ser cero ni negativo.", delete_after=2)
-        return
-    elif check == ProductStatus.seller_does_not_exist:
-        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=3)
-        return
-    elif check == ProductStatus.negative_max_sells:
-        await ctx.send(f"La cantidad maxima de ventas no puede ser negativa", delete_after=3)
-        return
-
-    embed = discord.Embed(title=f"${price} {title}", description=f"Vendedor: {ctx.author.name}\n{description}\nVentas: "
-                          f"{new_product.sells}", colour=discord.colour.Color.orange())
-    if image != "none":
-        embed.set_image(url=image)
-
-    msg = await ctx.send(embed=embed)
-    new_product.id = msg.id
-    new_product.send_to_db()
-
-    await ctx.author.send(f"Tu producto ha sido registrado exitosamente. El ID de tu producto es: {new_product.id}")
-    await msg.add_reaction("🪙")
-    await msg.add_reaction("❌")
-
-
-@slash.slash(name="editproducto", guild_ids=guild_ids, description=f"Transfiere {global_settings.coin_name} de tu wallet a un usuario",
-             options=[
-              create_option(name="id", description="identificador del producto",
-                            option_type=3, required=True),
-              create_option(name="precio", description="nuevo precio del producto",
-                            option_type=3, required=False),
-              create_option(name="titulo", description="nuevo titulo del producto",
-                            option_type=3, required=False),
-              create_option(name="descripcion", description="nueva descripcion del producto",
-                            option_type=3, required=False),
-              create_option(name="imagen", description=f"nueva url de una imagen (none para remover la imagen)",
-                            option_type=3, required=False)],
-             connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image"})
-async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", description="0", image="0"):
-    """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
-       haran cambios
-
-    Args:
-        ctx (SlashContext): Context de Discord
-        _id (int): Id del producto
-        price (float): Precio del producto, valor por defecto 0
-        title (str): "Descripción del producto, valor por defecto '0'
-        description (str): Título del producto, valor por defecto '0'
-        image (str): Url de la imagen, valor por defecto '0'
-    """
-    await ctx.defer()
-
-    try:
-        price = round(float(price), global_settings.max_decimals)
-        _id = int(_id)
-    except:
-        raise BadArgument
-
-    database_name = get_database_name(ctx.guild)
-    status = core.store.edit_product(
-        _id, ctx.author.id, database_name, price, title, description, image)
-
-    if status == ProductStatus.seller_does_not_exist:
-        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
-        return
-    elif status == ProductStatus.no_exists_in_db:
-        await ctx.send(f"ID invalido.", delete_after=2)
-        return
-    elif status == ProductStatus.user_is_not_seller_of_product:
-        await ctx.send(f"No puedes modificar un producto que no es tuyo.", delete_after=3)
-    elif status == ProductStatus.negative_quantity:
-        await ctx.send("El precio no puede ser negativo.", delete_after=2)
-        return
-    elif status == ProductStatus.sold_out:
-        await ctx.send("Producto agotado, no puedes modificarlo mas.", delete_after=2)
-        return
-
-    product = query("_id", _id, database_name, CollectionNames.shop.value)
-
-    embed = discord.Embed(title=f"${product['price']} {product['title']}", description=f"Vendedor: {ctx.author.name}\n"
-                          f"{product['description']}\nVentas: {product['sells']}", colour=discord.colour.Color.orange())
-    if product["image"] != "none":
-        embed.set_image(url=product["image"])
-
-    msg = await ctx.channel.fetch_message(_id)
-    await msg.edit(embed=embed)
-
-    await ctx.author.send(f"Tu producto ha sido editado exitosamente.")
-    await ctx.send("Editado.", delete_after=2)
-
-
-@slash.slash(name="delproducto", guild_ids=guild_ids, description="Elimina un producto",
-             options=[
-              create_option(name="id", description="identificador del producto (el id solo debe contener numeros)",
-                            option_type=3, required=True)],
-             connector={"id": "_id"})
-async def del_product_in_shop(ctx: SlashContext, _id):
-    """Comando para eliminar una interfaz de venta a un producto o servicio
-
-    Args:
-        ctx (SlashContext): Context de Discord
-        _id (int): Id del producto en la base de datos
-    """
-    await ctx.defer()
-
-    try:
-        _id = int(_id)
-    except:
-        raise BadArgument
-
-    database_name = get_database_name(ctx.guild)
-    product, product_exists = Product.from_database(_id, database_name)
-
-    if not product_exists:
-        await ctx.send(f"ID invalido.", delete_after=2)
-        return
-
-    balance = query("_id", ctx.author.id, database_name,
-                    CollectionNames.users.value)
-    if balance is None:
-        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
-        return
-
-    if product.user_id == ctx.author.id:
-        product.delete_on_db()
-        try:
-            msg = await ctx.channel.fetch_message(product.id)
-            await msg.delete()
-        except:
-            pass
-        await ctx.author.send(f"El producto {product.title} ha sido eliminado exitosamente.")
-        await ctx.send("Eliminado.", delete_after=2)
-
-    elif ctx.author.permissions_in(ctx.channel).administrator is True:
-        product.delete_on_db()
-        msg = await ctx.channel.fetch_message(product.id)
-        await msg.delete()
-        seller_user = await client.fetch_user(product.user_id)
-        await seller_user.send(f"Tu producto {product.title} ha sido eliminado por el administrator "
-                               f"{ctx.author.name}, ID {ctx.author .id}")
-
-        await ctx.author.send(f"Has eliminado el producto {product.title}, del usuario {seller_user.name}, ID"
-                              f" {seller_user.id}")
-        await ctx.send("Eliminado.", delete_after=2)
-    else:
-        await ctx.send("No puedes eliminar este producto.", delete_after=2)
-
-
-@slash.slash(name="productos", guild_ids=guild_ids, description="Busca tods los productos del usuario")
-async def get_products_in_shop(ctx: SlashContext):
-    """Comando para buscar todos los productos del usuario
-
-    Args:
-        ctx (SlashContext): Context de Discord
-    """
-    await ctx.defer()
-
-    database_name = get_database_name(ctx.guild)
-    balance = query("_id", ctx.author.id, database_name,
-                    CollectionNames.users.value)
-    if balance is None:
-        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.")
-        return
-
-    products = core.store.get_user_products(ctx.author.id, database_name)
-    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Productos Encontrados",
-                          description=f"Tabla de productos del usuario {ctx.author.name}")
-
-    if len(products) == 0:
-        embed.add_field(name="Nada", value="No tienes productos en venta.")
-
-    for product in products:
-        embed.add_field(
-            name=f"{product.title}",
-            value=f"ID:{product.id}, Precio: {product.price}")
-
-    await ctx.send(embed=embed)
+#@slash.slash(name="producto", guild_ids=guild_ids, description=f"Crea una oferta de un producto en un mensaje, manejando la compra de este a travéz de reacciones",
+#             options=[
+#              create_option(name="precio", description=f"precio en {global_settings.coin_name} del podcuto",
+#                            option_type=3, required=True),
+#              create_option(name="titulo", description=f"titulo del producto",
+#                            option_type=3, required=True),
+#              create_option(name="descripcion", description="descripcion del producto",
+#                            option_type=3, required=True),
+#              create_option(name="imagen", description=f"url de una imagen",
+#                            option_type=3, required=False),
+#              create_option(name="ventas_maximas", description=f"cantidad maxima de ventas (0 son ilimitadas, no se puede editar posteriormente)",
+#                            option_type=4, required=False)],
+#             connector={"precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image", "ventas_maximas": "max_sells"})
+#async def sell_product_in_shop(ctx: SlashContext, price, title, description, image="none", max_sells=0):
+#    """Comando para crear una interfaz de venta a un producto o servicio
+#
+#    Args:
+#        ctx (SlashContext): Context de Discord
+#        price (float): Precio del producto
+#        title (str): Título del producto
+#        description (str): Descripción del producto
+#        image (str): Url de una imagen
+#        max_sells (int): Numero maximo de ventas del producto
+#    """
+#    await ctx.defer()
+#
+#    try:
+#        price = round(float(price), global_settings.max_decimals)
+#    except:
+#        raise BadArgument
+#
+#    database_name = get_database_name(ctx.guild)
+#    if core.black_list.user_in_black_list(ctx.author.id, "s", database_name) is not None:
+#        await ctx.send("No puedes registrar productos ya que estas en la lista negra.")
+#        return
+#
+#    database_name = get_database_name(ctx.guild)
+#
+#    new_product = Product(ctx.author.id, title,
+#                          description, price, image, max_sells, 0, [], database_name)
+#    check = new_product.check_info()
+#    if check == ProductStatus.negative_quantity:
+#        await ctx.send("El precio de tu producto no puede ser cero ni negativo.", delete_after=2)
+#        return
+#    elif check == ProductStatus.seller_does_not_exist:
+#        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=3)
+#        return
+#    elif check == ProductStatus.negative_max_sells:
+#        await ctx.send(f"La cantidad maxima de ventas no puede ser negativa", delete_after=3)
+#        return
+#
+#    embed = discord.Embed(title=f"${price} {title}", description=f"Vendedor: {ctx.author.name}\n{description}\nVentas: "
+#                          f"{new_product.sells}", colour=discord.colour.Color.orange())
+#    if image != "none":
+#        embed.set_image(url=image)
+#
+#    msg = await ctx.send(embed=embed)
+#    new_product.id = msg.id
+#    new_product.send_to_db()
+#
+#    await ctx.author.send(f"Tu producto ha sido registrado exitosamente. El ID de tu producto es: {new_product.id}")
+#    await msg.add_reaction("🪙")
+#    await msg.add_reaction("❌")
+#
+#
+#@slash.slash(name="editproducto", guild_ids=guild_ids, description=f"Transfiere {global_settings.coin_name} de tu wallet a un usuario",
+#             options=[
+#              create_option(name="id", description="identificador del producto",
+#                            option_type=3, required=True),
+#              create_option(name="precio", description="nuevo precio del producto",
+#                            option_type=3, required=False),
+#              create_option(name="titulo", description="nuevo titulo del producto",
+#                            option_type=3, required=False),
+#              create_option(name="descripcion", description="nueva descripcion del producto",
+#                            option_type=3, required=False),
+#              create_option(name="imagen", description=f"nueva url de una imagen (none para remover la imagen)",
+#                            option_type=3, required=False)],
+#             connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description", "imagen": "image"})
+#async def edit_product_in_shop(ctx: SlashContext, _id, price=0, title="0", description="0", image="0"):
+#    """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
+#       haran cambios
+#
+#    Args:
+#        ctx (SlashContext): Context de Discord
+#        _id (int): Id del producto
+#        price (float): Precio del producto, valor por defecto 0
+#        title (str): "Descripción del producto, valor por defecto '0'
+#        description (str): Título del producto, valor por defecto '0'
+#        image (str): Url de la imagen, valor por defecto '0'
+#    """
+#    await ctx.defer()
+#
+#    try:
+#        price = round(float(price), global_settings.max_decimals)
+#        _id = int(_id)
+#    except:
+#        raise BadArgument
+#
+#    database_name = get_database_name(ctx.guild)
+#    status = core.store.edit_product(
+#        _id, ctx.author.id, database_name, price, title, description, image)
+#
+#    if status == ProductStatus.seller_does_not_exist:
+#        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
+#        return
+#    elif status == ProductStatus.no_exists_in_db:
+#        await ctx.send(f"ID invalido.", delete_after=2)
+#        return
+#    elif status == ProductStatus.user_is_not_seller_of_product:
+#        await ctx.send(f"No puedes modificar un producto que no es tuyo.", delete_after=3)
+#    elif status == ProductStatus.negative_quantity:
+#        await ctx.send("El precio no puede ser negativo.", delete_after=2)
+#        return
+#    elif status == ProductStatus.sold_out:
+#        await ctx.send("Producto agotado, no puedes modificarlo mas.", delete_after=2)
+#        return
+#
+#    product = query("_id", _id, database_name, CollectionNames.shop.value)
+#
+#    embed = discord.Embed(title=f"${product['price']} {product['title']}", description=f"Vendedor: {ctx.author.name}\n"
+#                          f"{product['description']}\nVentas: {product['sells']}", colour=discord.colour.Color.orange())
+#    if product["image"] != "none":
+#        embed.set_image(url=product["image"])
+#
+#    msg = await ctx.channel.fetch_message(_id)
+#    await msg.edit(embed=embed)
+#
+#    await ctx.author.send(f"Tu producto ha sido editado exitosamente.")
+#    await ctx.send("Editado.", delete_after=2)
+#
+#
+#@slash.slash(name="delproducto", guild_ids=guild_ids, description="Elimina un producto",
+#             options=[
+#              create_option(name="id", description="identificador del producto (el id solo debe contener numeros)",
+#                            option_type=3, required=True)],
+#             connector={"id": "_id"})
+#async def del_product_in_shop(ctx: SlashContext, _id):
+#    """Comando para eliminar una interfaz de venta a un producto o servicio
+#
+#    Args:
+#        ctx (SlashContext): Context de Discord
+#        _id (int): Id del producto en la base de datos
+#    """
+#    await ctx.defer()
+#
+#    try:
+#        _id = int(_id)
+#    except:
+#        raise BadArgument
+#
+#    database_name = get_database_name(ctx.guild)
+#    product, product_exists = Product.from_database(_id, database_name)
+#
+#    if not product_exists:
+#        await ctx.send(f"ID invalido.", delete_after=2)
+#        return
+#
+#    balance = query("_id", ctx.author.id, database_name,
+#                    CollectionNames.users.value)
+#    if balance is None:
+#        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
+#        return
+#
+#    if product.user_id == ctx.author.id:
+#        product.delete_on_db()
+#        try:
+#            msg = await ctx.channel.fetch_message(product.id)
+#            await msg.delete()
+#        except:
+#            pass
+#        await ctx.author.send(f"El producto {product.title} ha sido eliminado exitosamente.")
+#        await ctx.send("Eliminado.", delete_after=2)
+#
+#    elif ctx.author.permissions_in(ctx.channel).administrator is True:
+#        product.delete_on_db()
+#        msg = await ctx.channel.fetch_message(product.id)
+#        await msg.delete()
+#        seller_user = await client.fetch_user(product.user_id)
+#        await seller_user.send(f"Tu producto {product.title} ha sido eliminado por el administrator "
+#                               f"{ctx.author.name}, ID {ctx.author .id}")
+#
+#        await ctx.author.send(f"Has eliminado el producto {product.title}, del usuario {seller_user.name}, ID"
+#                              f" {seller_user.id}")
+#        await ctx.send("Eliminado.", delete_after=2)
+#    else:
+#        await ctx.send("No puedes eliminar este producto.", delete_after=2)
+#
+#
+#@slash.slash(name="productos", guild_ids=guild_ids, description="Busca tods los productos del usuario")
+#async def get_products_in_shop(ctx: SlashContext):
+#    """Comando para buscar todos los productos del usuario
+#
+#    Args:
+#        ctx (SlashContext): Context de Discord
+#    """
+#    await ctx.defer()
+#
+#    database_name = get_database_name(ctx.guild)
+#    balance = query("_id", ctx.author.id, database_name,
+#                    CollectionNames.users.value)
+#    if balance is None:
+#        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.")
+#        return
+#
+#    products = core.store.get_user_products(ctx.author.id, database_name)
+#    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Productos Encontrados",
+#                          description=f"Tabla de productos del usuario {ctx.author.name}")
+#
+#    if len(products) == 0:
+#        embed.add_field(name="Nada", value="No tienes productos en venta.")
+#
+#    for product in products:
+#        embed.add_field(
+#            name=f"{product.title}",
+#            value=f"ID:{product.id}, Precio: {product.price}")
+#
+#    await ctx.send(embed=embed)
 
 
 @slash.slash(name="usuarios", guild_ids=guild_ids, description="Entrega una lista de usuarios registrados a partir del nombre especificado",
@@ -552,43 +552,43 @@ async def help_cmd(ctx: SlashContext):
         inline=False
     )
 
-    embed.add_field(
-        name=f"{client.command_prefix}producto *precio* *titulo* *descripcion* *imagen* *ventas maximas*",
-        value=f"Crea una oferta de un producto en un mensaje, manejando la compra de este a travez de reacciones\n\n"
-              f"Ingresar:\n"
-              f"*precio*: Cantidad de {global_settings.coin_name}\n"
-              f"*título*: Título del producto\n"
-              f"*descripción*: Descripción del producto"
-              f"*imagen*: Url de una imagen "
-              f"(si envias una imagen por discord puedes copiar su link con click derecho, copy link)"
-              f"*ventas maximas*: Ventas maximas del producto, una vez completadas se pondra el enunciado 'agotado'",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{client.command_prefix}editproducto *id* *precio* *titulo* *descripcion*",
-        value=f"Edita un producto, si se pone 0 en un argumento (excepto id) se dejara el valor previo\n\n"
-              f"Ingresar:\n"
-              f"*id*: ID del producto\n"
-              f"*precio*: (Opcional) Nueva cantidad de {global_settings.coin_name}\n"
-              f"*título*: (Opcional) Nuevo título del producto\n"
-              f"*descripcion*: (Opcional) Nueva descripcion del producto",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{client.command_prefix}delproducto *id*",
-        value="Elimina un producto\n\n"
-              "Ingresar:\n"
-              "*id*: ID del producto",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{client.command_prefix}productos",
-        value="""Busca tods los productos del usuario.""",
-        inline=False
-    )
+#    embed.add_field(
+#        name=f"{client.command_prefix}producto *precio* *titulo* *descripcion* *imagen* *ventas maximas*",
+#        value=f"Crea una oferta de un producto en un mensaje, manejando la compra de este a travez de reacciones\n\n"
+#              f"Ingresar:\n"
+#              f"*precio*: Cantidad de {global_settings.coin_name}\n"
+#              f"*título*: Título del producto\n"
+#              f"*descripción*: Descripción del producto"
+#              f"*imagen*: Url de una imagen "
+#              f"(si envias una imagen por discord puedes copiar su link con click derecho, copy link)"
+#              f"*ventas maximas*: Ventas maximas del producto, una vez completadas se pondra el enunciado 'agotado'",
+#        inline=False
+#    )
+#
+#    embed.add_field(
+#        name=f"{client.command_prefix}editproducto *id* *precio* *titulo* *descripcion*",
+#        value=f"Edita un producto, si se pone 0 en un argumento (excepto id) se dejara el valor previo\n\n"
+#              f"Ingresar:\n"
+#              f"*id*: ID del producto\n"
+#              f"*precio*: (Opcional) Nueva cantidad de {global_settings.coin_name}\n"
+#              f"*título*: (Opcional) Nuevo título del producto\n"
+#              f"*descripcion*: (Opcional) Nueva descripcion del producto",
+#        inline=False
+#    )
+#
+#    embed.add_field(
+#        name=f"{client.command_prefix}delproducto *id*",
+#        value="Elimina un producto\n\n"
+#              "Ingresar:\n"
+#              "*id*: ID del producto",
+#        inline=False
+#    )
+#
+#    embed.add_field(
+#        name=f"{client.command_prefix}productos",
+#        value="""Busca tods los productos del usuario.""",
+#        inline=False
+#    )
 
     embed.add_field(
         name=f"{client.command_prefix}validar *id*",
@@ -818,17 +818,17 @@ async def admin_help_cmd(ctx: Context):
         inline=False
     )
 
-    embed.add_field(
-        name=f"{client.command_prefix}init",
-        value=f"Inicializa el forgado de {global_settings.coin_name}.",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{client.command_prefix}stopforge",
-        value=f"Detiene el forjado de {global_settings.coin_name}.",
-        inline=False
-    )
+#    embed.add_field(
+#        name=f"{client.command_prefix}init",
+#        value=f"Inicializa el forgado de {global_settings.coin_name}.",
+#        inline=False
+#    )
+#
+#    embed.add_field(
+#        name=f"{client.command_prefix}stopforge",
+#        value=f"Detiene el forjado de {global_settings.coin_name}.",
+#        inline=False
+#    )
 
     embed.add_field(
         name=f"{client.command_prefix}reset",
