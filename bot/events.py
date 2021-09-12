@@ -26,6 +26,12 @@ async def on_ready():
 
 
 @client.event
+async def on_message(message):
+    if message.author.bot is True and message.clean_content == "/awake":
+        await message.add_reaction("✅")
+
+
+@client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
