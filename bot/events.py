@@ -27,8 +27,14 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author.bot is True and message.clean_content == "/awake":
+    if message.author.bot is True and message.clean_content == f"{global_settings.prefix}/awake":
         await message.add_reaction("✅")
+    elif message.clean_content == f"{global_settings.prefix}stop":
+        for dev_id in global_settings.dev_ids:
+            if dev_id == message.author.id:
+                await client.close()
+    elif message.clean_content == f"{global_settings.prefix}ping":
+        await message.channel.send(f"Latencia: {int(round(client.latency * 1000, 0))}ms")
 
 
 @client.event

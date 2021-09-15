@@ -27,26 +27,26 @@ guild_ids = [864333042842599444, 655463424561512481]
 global_settings = get_global_settings()
 
 
-@client.command(name="stop")
-async def stop_bot(ctx: Context):
-    """Envia un mensaje con el ping del bot
+#@client.command(name="stop")
+#async def stop_bot(ctx: Context):
+#    """Envia un mensaje con el ping del bot
+#
+#    Args:
+#        ctx (Context): Context de discord
+#    """
+#    for dev_id in global_settings.dev_ids:
+#        if dev_id == ctx.author.id:
+#            await client.close()
 
-    Args:
-        ctx (Context): Context de discord
-    """
-    for dev_id in global_settings.dev_ids:
-        if dev_id == ctx.author.id:
-            await client.close()
 
-
-@client.command(name="ping")
-async def ping_chek(ctx: Context):
-    """Envia un mensaje con el ping del bot
-
-    Args:
-        ctx (Context): Context de discord
-    """
-    await send_message(ctx, f"Latencia: {int(round(client.latency * 1000, 0))}ms")
+#@client.command(name="ping")
+#async def ping_chek(ctx: Context):
+#    """Envia un mensaje con el ping del bot
+#
+#    Args:
+#        ctx (Context): Context de discord
+#    """
+#    await send_message(ctx, f"Latencia: {int(round(client.latency * 1000, 0))}ms")
 
 
 @slash.slash(name="bug", guild_ids=guild_ids, description="reporta un bug del bot a los desarrolladores",
