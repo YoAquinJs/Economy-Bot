@@ -612,9 +612,15 @@ async def help_cmd(ctx: SlashContext):
 """Admin Commands"""
 
 
-@client.command(name="listanegra")
+@slash.slash(name="listanegra", guild_ids=guild_ids, description="(Admin) Registra o elimina a un usuario a la lista negra especificada.",
+             options=[
+              create_option(name="usuario", description="Mencion del usuario",
+                            option_type=6, required=True),
+              create_option(name="lista", description="Caracter ('b': reporte de bugs, 'r': registro, 's': tienda, 't': transacciones)",  # TODO
+                            option_type=3, required=True)],
+             connector={"usuario": "user", "lista": "black_l"})
 @commands.has_permissions(administrator=True)
-async def black_list(ctx: Context, user: discord.Member, black_l: str):
+async def black_list(ctx: SlashContext, user: discord.Member, black_l: str):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
     Args:
@@ -633,9 +639,15 @@ async def black_list(ctx: Context, user: discord.Member, black_l: str):
     await ctx.send(f"El usuario {user.display_name} ah sido {action} de la lista negra.")
 
 
-@client.command(name="imprimir")
+@slash.slash(name="imprimir", guild_ids=guild_ids, description=f"(Admin) Imprime la cantidad especificada de {global_settings.coin_name} y las asigna al usuario.",
+             options=[
+              create_option(name="cantidad", description=f"Cantidad de {global_settings.coin_name} a imprimir",
+                            option_type=3, required=True),
+              create_option(name="usuario", description="Mención del usuario",
+                            option_type=6, required=True)],
+             connector={"cantidad": "quantity", "usuario": "receptor"})
 @commands.has_permissions(administrator=True)
-async def print_coins(ctx: Context, quantity, receptor: discord.Member):
+async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
     Args:
@@ -666,9 +678,15 @@ async def print_coins(ctx: Context, quantity, receptor: discord.Member):
                             f"ID {receptor_b._id}")
 
 
-@client.command(name="expropiar")
+@slash.slash(name="expropiar", guild_ids=guild_ids, description=f"(Admin) Expropia la cantidad especificada de {global_settings.coin_name} a un usuario.",
+             options=[
+              create_option(name="cantidad", description=f"Cantidad de {global_settings.coin_name} a expropiar",
+                            option_type=3, required=True),
+              create_option(name="usuario", description="Mención del usuario",
+                            option_type=6, required=True)],
+             connector={"cantidad": "quantity", "usuario": "receptor"})
 @commands.has_permissions(administrator=True)
-async def expropriate_coins(ctx: Context, quantity, receptor: discord.Member):
+async def expropriate_coins(ctx: SlashContext, quantity, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
 
     Args:
@@ -765,9 +783,9 @@ async def expropriate_coins(ctx: Context, quantity, receptor: discord.Member):
 #        await ctx.send(f"Nueva {global_settings.coin_name}, se le ha asignado a {random_user.name}")
 
 
-@client.command(name="reset")
+@slash.slash(name="reset", guild_ids=guild_ids, description="(Admin) Pone los balances de todos los usuarios en 0.")
 @commands.has_permissions(administrator=True)
-async def reset_economy(ctx: Context):
+async def reset_economy(ctx: SlashContext):
     """Pone los balances de todos los usuarios en 0, Requiere permisos de administrador
 
     Args:
@@ -779,9 +797,9 @@ async def reset_economy(ctx: Context):
     await ctx.send(f"todos los usuarios tienen 0 {global_settings.coin_name}")
 
 
-@client.command(name="adminayuda")
+@slash.slash(name="adminayuda", guild_ids=guild_ids, description=f"(Admin) Muestra los comandos disponibles de admin")
 @commands.has_permissions(administrator=True)
-async def admin_help_cmd(ctx: Context):
+async def admin_help_cmd(ctx: SlashContext):
     """Retorna la lista de comandos disponibles para los admins, Manda un mensaje con la información de los comandos del
        bot
     Args:
@@ -795,7 +813,7 @@ async def admin_help_cmd(ctx: Context):
         name=f"{client.command_prefix}listanegra",
         value=f"Registra a un usuario a la lista negra especificada o lo elimina si ya se encuentra en esta.\n\n"
               f"Ingresar:\n"
-              f"*usuario*: Mencion del usuario\n"
+              f"*usuario*: Mencion del usuario (@user)\n"
               "*lista negra*: 4 posibles caracteres ('b': reporte de bugs, 'r': registro, 's': tienda, 't': transacciones)",
         inline=False
     )
