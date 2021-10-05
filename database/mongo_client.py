@@ -21,7 +21,7 @@ def init_database():
     # URL de la base de datos en Mongo Atlas
     url_db = f"mongodb+srv://{global_settings.mongoUser}:{global_settings.mongoPassword}" \
              f"@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-    __mongo_client = pymongo.MongoClient(url_db)
+    __mongo_client = pymongo.MongoClient(url_db, tlsCAFile=certifi.where())
 
 
 def get_mongo_client() -> pymongo.MongoClient:
