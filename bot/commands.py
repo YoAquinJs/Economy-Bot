@@ -937,7 +937,7 @@ async def edit_role_in_shop(ctx: SlashContext, _id, price=0, title="0", descript
 
 @slash.slash(name="delrol", guild_ids=guild_ids, description="Elimina un rol",
              options=[
-              create_option(name="id", description="identificador del producto (el id solo debe contener numeros)",
+              create_option(name="id", description="identificador del rol (el id solo debe contener numeros)",
                             option_type=3, required=True)],
              connector={"id": "_id"})
 async def del_role_in_shop(ctx: SlashContext, _id):
@@ -1023,11 +1023,45 @@ async def admin_help_cmd(ctx: SlashContext):
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}expropiar",
+        name=f"{client.command_prefix}expropiar *cantidad* *usuario*",
         value=f"Elimina la cantidad especificada de {global_settings.coin_name} de la wallet del usuario.\n\n"
               f"Ingresar:\n"
               f"*cantidad*: Cantidad de {global_settings.coin_name} a expropiar\n"
               "*usuario*: Mención del usuario (@user)",
+        inline=False
+    )
+
+    embed.add_field(
+        name=f"{client.command_prefix}rol *cantidad* *usuario*",
+        value="Crea una venta de rol.\n\n"
+              f"Ingresar:\n"
+              f"*id*: Identificador del rol\n"
+              "*precio*: Cantidad de {global_settings.coin_name} a expropiar\n"
+              "*titulo*: Titulo del rol\n"
+              "*descripcion*: Descripcion del rol\n"
+              "*Rol*: Rol a asginar\n"
+              "*imagen*: (Opcional) Imagen del rol",
+        inline=False
+    )
+
+    embed.add_field(
+        name=f"{client.command_prefix}editrol *id* *precio* *titulo* *descripcion* *imagen* *rol*",
+        value="Edita una venta de rol.\n\n"
+              f"Ingresar:\n"
+              f"*id*: Identificador del rol\n"
+              "*precio*: (Opcional) Cantidad de {global_settings.coin_name} a expropiar\n"
+              "*titulo*: (Opcional) Titulo del rol\n"
+              "*descripcion*: (Opcional) Descripcion del rol\n"
+              "*imagen*: (Opcional) Imagen del rol\n"
+              "*Rol*: (Opcional) Rol a asginar",
+        inline=False
+    )
+
+    embed.add_field(
+        name=f"{client.command_prefix}delrol *id*",
+        value="Elimina una venta de rol.\n\n"
+              f"Ingresar:\n"
+              f"*id*: Identificador del rol",
         inline=False
     )
 
