@@ -152,7 +152,7 @@ async def de_register(ctx: SlashContext, motive="nulo"):
 @slash.slash(name="transferir", guild_ids=guild_ids, description=f"Transfiere {global_settings.coin_name} de tu wallet a un usuario",
              options=[
               create_option(name="cantidad", description=f"cantidad de {global_settings.coin_name}",
-                            option_type=3, required=True),
+                            option_type=10, required=True),
               create_option(name="receptor", description="mencion del usuario receptorr",
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "receptor": "receptor"})
@@ -167,7 +167,7 @@ async def transference(ctx: SlashContext, quantity, receptor: discord.Member):
     await ctx.defer()
 
     try:
-        quantity = round(float(quantity), global_settings.max_decimals)
+        quantity = round(quantity)
     except:
         raise BadArgument
 
@@ -489,8 +489,7 @@ async def validate_transaction(ctx: SlashContext, _id):
         _id (float): Cantidad de monedas a imprimir
     """
     database_name = get_database_name(ctx.guild)
-    transaction = query_id(
-        _id, database_name, CollectionNames.transactions.value)
+    transaction = query_id(_id, database_name, CollectionNames.transactions.value)
 
     if transaction is None:
         await ctx.send("ID invalido.")
@@ -643,7 +642,7 @@ async def black_list(ctx: SlashContext, user: discord.Member, black_l: str):
 @slash.slash(name="imprimir", guild_ids=guild_ids, description=f"(Admin) Imprime la cantidad especificada de {global_settings.coin_name} y las asigna al usuario.",
              options=[
               create_option(name="cantidad", description=f"Cantidad de {global_settings.coin_name} a imprimir",
-                            option_type=3, required=True),
+                            option_type=10, required=True),
               create_option(name="usuario", description="Mención del usuario",
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "usuario": "receptor"})
@@ -657,7 +656,7 @@ async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
         receptor (str): Mención al usuario receptor de las monedas
     """
     try:
-        quantity = float(quantity)
+        quantity = round(query())
     except:
         raise BadArgument
 
@@ -682,7 +681,7 @@ async def print_coins(ctx: SlashContext, quantity, receptor: discord.Member):
 @slash.slash(name="expropiar", guild_ids=guild_ids, description=f"(Admin) Expropia la cantidad especificada de {global_settings.coin_name} a un usuario.",
              options=[
               create_option(name="cantidad", description=f"Cantidad de {global_settings.coin_name} a expropiar",
-                            option_type=3, required=True),
+                            option_type=10, required=True),
               create_option(name="usuario", description="Mención del usuario",
                             option_type=6, required=True)],
              connector={"cantidad": "quantity", "usuario": "receptor"})
@@ -697,7 +696,7 @@ async def expropriate_coins(ctx: SlashContext, quantity, receptor: discord.Membe
     """
 
     try:
-        quantity = float(quantity)
+        quantity = round(quantity)
     except:
         raise BadArgument
 
@@ -831,7 +830,7 @@ async def sell_role_in_shop(ctx: SlashContext, price, title, description, role, 
     await ctx.defer()
 
     try:
-        price = round(float(price), global_settings.max_decimals)
+        price = round(price)
     except:
         raise BadArgument
 
@@ -896,7 +895,7 @@ async def edit_role_in_shop(ctx: SlashContext, _id, price=0, title="0", descript
     await ctx.defer()
 
     try:
-        price = round(float(price), global_settings.max_decimals)
+        price = round(price)
         _id = int(_id)
     except:
         raise BadArgument
@@ -1040,7 +1039,8 @@ async def admin_help_cmd(ctx: SlashContext):
               "*titulo*: Titulo del rol\n"
               "*descripcion*: Descripcion del rol\n"
               "*Rol*: Rol a asginar\n"
-              "*imagen*: (Opcional) Imagen del rol",
+              "*imagen*: (Opcional) Imagen del rol\n"
+              "*ventas maximas: (Opcional) Cantidad maxima de ventas",
         inline=False
     )
 
