@@ -1,6 +1,7 @@
 """El módulo mongo_client se encarga de la creacion del cliente de mongo y la conexion con la base de datos de Mongo"""
 
 import pymongo
+import certifi
 
 from utils.utils import get_global_settings
 
