@@ -2,6 +2,7 @@
 import discord
 
 from models.product import Product
+from models.role import Role
 from discord.ext import commands
 from discord.ext.commands import Context, BadArgument
 from discord_slash import SlashCommand, SlashContext
@@ -630,7 +631,7 @@ async def black_list(ctx: SlashContext, user: discord.Member, black_l: str):
     """
 
     database_name = get_database_name(ctx.guild)
-    action = core.black_list.toggle_user_in_black_list(ctx.author.id, black_l, database_name)
+    action = core.black_list.toggle_user_in_black_list(user.id, black_l, database_name)
 
     if action == None:
         await ctx.send("Lista negra invalida, usa /adminayuda para ver las listas negras disponibles.")
@@ -795,6 +796,200 @@ async def reset_economy(ctx: SlashContext):
     core.economy_management.reset_economy(db_name)
 
     await ctx.send(f"todos los usuarios tienen 0 {global_settings.coin_name}")
+
+
+@slash.slash(name="rol", guild_ids=guild_ids, description=f"Crea una oferta de un producto en un mensaje, "
+                                                               f"manejando la compra de este a travéz de reacciones",
+             options=[
+              create_option(name="precio", description=f"precio en {global_settings.coin_name} del rol",
+                            option_type=10, required=True),
+              create_option(name="titulo", description=f"titulo del rol",
+                            option_type=3, required=True),
+              create_option(name="descripcion", description="descripcion del rol",
+                            option_type=3, required=True),
+              create_option(name="rol", description="rol a asginar",
+                            option_type=8, required=True),
+              create_option(name="imagen", description=f"url de una imagen",
+                            option_type=3, required=False),
+              create_option(name="ventas_maximas", description=f"cantidad maxima de ventas (0 son ilimitadas, no se "
+                                                               f"puede editar posteriormente)",
+                            option_type=4, required=False)],
+             connector={"precio": "price", "titulo": "title", "descripcion": "description", "rol": "role",
+                        "imagen": "image", "ventas_maximas": "max_sells"})
+async def sell_role_in_shop(ctx: SlashContext, price, title, description, role, image="none", max_sells=0):
+    """Comando para crear una interfaz de venta a un producto o servicio
+
+    Args:
+        ctx (SlashContext): Context de Discord
+        price (float): Precio del producto
+        title (str): Título del producto
+        description (str): Descripción del producto
+        role (discord.Role): rol de discord
+        image (str): Url de una imagen
+        max_sells (int): Numero maximo de ventas del producto
+    """
+    await ctx.defer()
+
+    try:
+        price = round(float(price), global_settings.max_decimals)
+    except:
+        raise BadArgument
+
+    database_name = get_database_name(ctx.guild)
+
+    new_role = Role(ctx.author.id, title, description, price, image, role.id, max_sells, 0, [], database_name)
+    check = new_role.check_info()
+    if check == ProductStatus.negative_quantity:
+        await ctx.send("El precio del rol no puede ser cero ni negativo.", delete_after=2)
+        return
+    elif check == ProductStatus.seller_does_not_exist:
+        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=3)
+        return
+    elif check == ProductStatus.negative_max_sells:
+        await ctx.send(f"La cantidad maxima de ventas no puede ser negativa", delete_after=3)
+        return
+
+    embed = discord.Embed(title=f"${price} {title} \nRol: {role.name}",
+                          description=f"Vendedor: {ctx.author.name}\n{description}\nVentas: "
+                          f"{new_role.sells}", colour=discord.colour.Color.orange())
+    if image != "none":
+        embed.set_image(url=image)
+
+    msg = await ctx.send(embed=embed)
+    new_role.id = msg.id
+    new_role.send_to_db()
+
+    await ctx.author.send(f"Tu producto ha sido registrado exitosamente. El ID de tu producto es: {new_role.id}")
+    await msg.add_reaction("🪙")
+    await msg.add_reaction("❌")
+
+
+@slash.slash(name="editrol", guild_ids=guild_ids, description=f"Edita la venta del rol",
+             options=[
+              create_option(name="id", description="identificador del producto",
+                            option_type=3, required=True),
+              create_option(name="precio", description="nuevo precio del producto",
+                            option_type=10, required=False),
+              create_option(name="titulo", description="nuevo titulo del producto",
+                            option_type=3, required=False),
+              create_option(name="descripcion", description="nueva descripcion del producto",
+                            option_type=3, required=False),
+              create_option(name="imagen", description=f"nueva url de una imagen (none para remover la imagen)",
+                            option_type=3, required=False),
+              create_option(name="rol", description=f"nuevo rol a asignar",
+                            option_type=8, required=False)],
+             connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description",
+                        "imagen": "image", "rol": "role"})
+async def edit_role_in_shop(ctx: SlashContext, _id, price=0, title="0", description="0", image="0", role="0"):
+    """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
+       haran cambios
+
+    Args:
+        ctx (SlashContext): Context de Discord
+        _id (int): Id del producto
+        price (float): Precio del producto, valor por defecto 0
+        title (str): "Descripción del producto, valor por defecto '0'
+        description (str): Título del producto, valor por defecto '0'
+        image (str): Url de la imagen, valor por defecto '0'
+        role (discord.Role): Nuevo rol, valor por defecto '0'
+    """
+    await ctx.defer()
+
+    try:
+        price = round(float(price), global_settings.max_decimals)
+        _id = int(_id)
+    except:
+        raise BadArgument
+
+    database_name = get_database_name(ctx.guild)
+    status = core.store.edit_role(_id, ctx.author.id, database_name, price, title, description, image, role)
+
+    if status == ProductStatus.seller_does_not_exist:
+        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
+        return
+    elif status == ProductStatus.no_exists_in_db:
+        await ctx.send(f"ID invalido.", delete_after=2)
+        return
+    elif status == ProductStatus.user_is_not_seller_of_product:
+        await ctx.send(f"No puedes modificar un rol que no es tuyo.", delete_after=3)
+    elif status == ProductStatus.negative_quantity:
+        await ctx.send("El precio no puede ser negativo.", delete_after=2)
+        return
+    elif status == ProductStatus.sold_out:
+        await ctx.send("Producto agotado, no puedes modificarlo mas.", delete_after=2)
+        return
+
+    role = query("_id", _id, database_name, CollectionNames.role_shop.value)
+
+    role_d = discord.utils.get(ctx.guild.roles, id=role["role"])
+    embed = discord.Embed(title=f"${role['price']} {role['title']}\nRol: {role_d.name}",
+                          description=f"Vendedor: {ctx.author.name}\n"
+                          f"{role['description']}\nVentas: {role['sells']}", colour=discord.colour.Color.orange())
+    if role["image"] != "none":
+        embed.set_image(url=role["image"])
+
+    msg = await ctx.channel.fetch_message(_id)
+    await msg.edit(embed=embed)
+
+    await ctx.author.send(f"Tu rol ha sido editado exitosamente.")
+    await ctx.send("Editado.", delete_after=2)
+
+
+@slash.slash(name="delrol", guild_ids=guild_ids, description="Elimina un rol",
+             options=[
+              create_option(name="id", description="identificador del producto (el id solo debe contener numeros)",
+                            option_type=3, required=True)],
+             connector={"id": "_id"})
+async def del_role_in_shop(ctx: SlashContext, _id):
+    """Comando para eliminar una interfaz de venta a un producto o servicio
+
+    Args:
+        ctx (SlashContext): Context de Discord
+        _id (int): Id del producto en la base de datos
+    """
+    await ctx.defer()
+
+    try:
+        _id = int(_id)
+    except:
+        raise BadArgument
+
+    database_name = get_database_name(ctx.guild)
+    role, role_exists = Role.from_database(_id, database_name)
+
+    if not role_exists:
+        await ctx.send(f"ID invalido.", delete_after=2)
+        return
+
+    balance = query("_id", ctx.author.id, database_name,
+                    CollectionNames.users.value)
+    if balance is None:
+        await ctx.send(f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", delete_after=2)
+        return
+
+    if role.user_id == ctx.author.id:
+        role.delete_on_db()
+        try:
+            msg = await ctx.channel.fetch_message(role.id)
+            await msg.delete()
+        except:
+            pass
+        await ctx.author.send(f"El rol {role.title} ha sido eliminado exitosamente.")
+        await ctx.send("Eliminado.", delete_after=2)
+
+    elif ctx.author.permissions_in(ctx.channel).administrator is True:
+        role.delete_on_db()
+        msg = await ctx.channel.fetch_message(role.id)
+        await msg.delete()
+        seller_user = await client.fetch_user(role.user_id)
+        await seller_user.send(f"Tu rol {role.title} ha sido eliminado por el administrator "
+                               f"{ctx.author.name}, ID {ctx.author .id}")
+
+        await ctx.author.send(f"Has eliminado el rol {role.title}, del usuario {seller_user.name}, ID"
+                              f" {seller_user.id}")
+        await ctx.send("Eliminado.", delete_after=2)
+    else:
+        await ctx.send("No puedes eliminar este rol.", delete_after=2)
 
 
 @slash.slash(name="adminayuda", guild_ids=guild_ids, description=f"(Admin) Muestra los comandos disponibles de admin")

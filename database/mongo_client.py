@@ -1,6 +1,7 @@
 """El módulo mongo_client se encarga de la creacion del cliente de mongo y la conexion con la base de datos de Mongo"""
 
 import pymongo
+import certifi
 
 from utils.utils import get_global_settings
 
@@ -19,9 +20,10 @@ def init_database():
     global __mongo_client
 
     # URL de la base de datos en Mongo Atlas
+    #("mongodb+srv://BonoboAdmin:<password>@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
     url_db = f"mongodb+srv://{global_settings.mongoUser}:{global_settings.mongoPassword}" \
              f"@bonobocluster.dl8wg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-    __mongo_client = pymongo.MongoClient(url_db)
+    __mongo_client = pymongo.MongoClient(url_db, tlsCAFile=certifi.where())
 
 
 def get_mongo_client() -> pymongo.MongoClient:

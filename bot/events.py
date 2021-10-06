@@ -103,82 +103,170 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     guild = client.get_guild(payload.guild_id)
     database_name = get_database_name(guild)
 
-    if payload.member.bot or \
-       exists("_id", payload.message_id, database_name, CollectionNames.shop.value) is False:
+    is_product = exists("_id", payload.message_id, database_name, CollectionNames.shop.value)
+    is_role = exists("_id", payload.message_id, database_name, CollectionNames.role_shop.value)
+
+    if payload.member.bot or (is_product is False and is_role is False):
         return
 
     channel = discord.utils.get(client.get_guild(payload.guild_id).channels, id=payload.channel_id)
     msg = await channel.fetch_message(payload.message_id)
 
-    product = query("_id", payload.message_id, database_name,
-                    CollectionNames.shop.value)
+    if is_product is True:
+        product = query("_id", payload.message_id, database_name, CollectionNames.shop.value)
 
-    seller_user = await client.fetch_user(product["user_id"])
+        seller_user = await client.fetch_user(product["user_id"])
 
-    if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
-            payload.member.id != product["user_id"]:
-        await msg.delete()
-        delete("_id", payload.message_id, database_name,
-               CollectionNames.shop.value)
-
-        await payload.member.send(f"has eliminado el producto {product['title']}, del usuario {seller_user.name}, id"
-                                  f" {seller_user.id}")
-        await seller_user.send(f"tu producto {product['title']} ha sido eliminado por el administrator "
-                               f"{payload.member.name}, id {payload.member.id}")
-    elif payload.member.id != product["user_id"]:
-        if str(payload.emoji) != "🪙":
-            return
-        else:
-            quantity = product["price"]
-
-            buyer_euser = EconomyUser(payload.member.id, database_name)
-            seller_euser = EconomyUser(seller_user.id, database_name)
-
-            # Si el comprador esta registrado
-            if buyer_euser.user_exists():
-                # Si el comprador tiene suficientes monedas
-                if buyer_euser.balance.value >= quantity:
-                    # if economic_users[author_key]["coins"] >= quantity:
-                    if product["sells"] < product["max_sells"] or product["max_sells"] == 0:
-                        modify("_id", payload.message_id, "sells", product["sells"] + 1, database_name,
-                               CollectionNames.shop.value)
-
-                        sells_msg = f"{product['sells'] + 1}"
-                        if product["sells"] + 1 == product["max_sells"]:
-                            sells_msg += " *Agotado*"
-
-                        embed = discord.Embed(title=f"${product['price']} {product['title']}",
-                                              description=f"\nVendedor: {seller_user.name}\n{product['description']}\n"
-                                                          f"Ventas: {sells_msg}",
-                                              colour=discord.colour.Color.orange())
-                        if product["image"] != "none":
-                            embed.set_image(url=product["image"])
-
-                        await msg.edit(embed=embed)
-
-                        na, transaction = new_transaction(
-                            buyer_euser, seller_euser, quantity, database_name, channel.name, 'compra en tienda')
-
-                        await payload.member.send(f"Has adquirido el producto: {product['title']}\n"
-                                                  f"Vendedor: {seller_user.name} ID: {seller_user.id}\n"
-                                                  f"ID transaccion: {transaction}")
-                        await seller_user.send(f"Compra del Comprador: {payload.member.name} ID: {payload.member.id}"
-                                               f"Producto: {product['title']}, cumple con la entrega\n"
-                                               f"ID transaccion: {transaction}")
-                    else:
-                        await payload.member.send(f"El producto que deseas comprar ya esta agotado, lo sentimos "
-                                                  f"{payload.member.name}")
-                else:
-                    await payload.member.send(f"No tienes suficientes {global_settings.coin_name} para esta compra.")
-            else:
-                await payload.member.send(f"no estas registrado, registrate con {global_settings.prefix}registro")
-            pass
-    else:
-        if str(payload.emoji) == "❌":
+        if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
+                payload.member.id != product["user_id"]:
             await msg.delete()
             delete("_id", payload.message_id, database_name,
                    CollectionNames.shop.value)
 
-            await seller_user.send(f"has eliminado tu producto {product['title']}")
+            await payload.member.send(
+                f"has eliminado el producto {product['title']}, del usuario {seller_user.name}, id"
+                f" {seller_user.id}")
+            await seller_user.send(f"tu producto {product['title']} ha sido eliminado por el administrator "
+                                   f"{payload.member.name}, id {payload.member.id}")
+        elif payload.member.id != product["user_id"]:
+            if str(payload.emoji) != "🪙":
+                quantity = product["price"]
 
-    await msg.remove_reaction(payload.emoji, payload.member)
+                buyer_euser = EconomyUser(payload.member.id, database_name)
+                seller_euser = EconomyUser(seller_user.id, database_name)
+
+                # Si el comprador esta registrado
+                if buyer_euser.user_exists():
+                    # Si el comprador tiene suficientes monedas
+                    if buyer_euser.balance.value >= quantity:
+                        # if economic_users[author_key]["coins"] >= quantity:
+                        if product["sells"] < product["max_sells"] or product["max_sells"] == 0:
+                            modify("_id", payload.message_id, "sells", product["sells"] + 1, database_name,
+                                   CollectionNames.shop.value)
+
+                            sells_msg = f"{product['sells'] + 1}"
+                            if product["sells"] + 1 == product["max_sells"]:
+                                sells_msg += " *Agotado*"
+
+                            embed = discord.Embed(title=f"${product['price']} {product['title']}",
+                                                  description=f"\nVendedor: {seller_user.name}\n{product['description']}\n"
+                                                              f"Ventas: {sells_msg}",
+                                                  colour=discord.colour.Color.orange())
+                            if product["image"] != "none":
+                                embed.set_image(url=product["image"])
+
+                            await msg.edit(embed=embed)
+
+                            na, transaction = new_transaction(
+                                buyer_euser, seller_euser, quantity, database_name, channel.name, 'compra en tienda')
+
+                            await payload.member.send(f"Has adquirido el producto: {product['title']}\n"
+                                                      f"Vendedor: {seller_user.name} ID: {seller_user.id}\n"
+                                                      f"ID transaccion: {transaction}")
+                            await seller_user.send(
+                                f"Compra del Comprador: {payload.member.name} ID: {payload.member.id}"
+                                f"Producto: {product['title']}, cumple con la entrega\n"
+                                f"ID transaccion: {transaction}")
+                        else:
+                            await payload.member.send(f"El producto que deseas comprar ya esta agotado, lo sentimos "
+                                                      f"{payload.member.name}")
+                    else:
+                        await payload.member.send(
+                            f"No tienes suficientes {global_settings.coin_name} para esta compra.")
+                else:
+                    await payload.member.send(f"no estas registrado, registrate con {global_settings.prefix}registro")
+                pass
+        else:
+            if str(payload.emoji) == "❌":
+                await msg.delete()
+                delete("_id", payload.message_id, database_name,
+                       CollectionNames.shop.value)
+
+                await seller_user.send(f"has eliminado tu producto {product['title']}")
+
+    elif is_role is True:
+        role = query("_id", payload.message_id, database_name, CollectionNames.role_shop.value)
+
+        seller_user = await client.fetch_user(role["user_id"])
+
+        if payload.member.permissions_in(channel).administrator is True and str(payload.emoji) == "❌" and \
+                payload.member.id != role["user_id"]:
+            await msg.delete()
+            delete("_id", payload.message_id, database_name,
+                   CollectionNames.role_shop.value)
+
+            await payload.member.send(
+                f"has eliminado el rol {role['title']}, del usuario {seller_user.name}, id"
+                f" {seller_user.id}")
+            await seller_user.send(f"tu rol {role['title']} ha sido eliminado por el administrator "
+                                   f"{payload.member.name}, id {payload.member.id}")
+        elif payload.member.id != role["user_id"]:
+            if str(payload.emoji) == "🪙":
+                quantity = role["price"]
+
+                buyer_euser = EconomyUser(payload.member.id, database_name)
+                seller_euser = EconomyUser(seller_user.id, database_name)
+
+                role_d = discord.utils.get(guild.roles, id=role["role"])
+
+                if role_d in payload.member.roles:
+                    await payload.member.send(f"Ya posees el rol: {role_d.name}\n")
+                    return
+
+                # Si el comprador esta registrado
+                if buyer_euser.user_exists():
+                    # Si el comprador tiene suficientes monedas
+                    if buyer_euser.balance.value >= quantity:
+                        # if economic_users[author_key]["coins"] >= quantity:
+                        if role["sells"] < role["max_sells"] or role["max_sells"] == 0:
+                            modify("_id", payload.message_id, "sells", role["sells"] + 1, database_name,
+                                   CollectionNames.shop.value)
+
+                            sells_msg = f"{role['sells'] + 1}"
+                            if role["sells"] + 1 == role["max_sells"]:
+                                sells_msg += " *Agotado*"
+
+                            embed = discord.Embed(title=f"${role['price']} {role['title']}\n{role_d.name}",
+                                                  description=f"\nVendedor: {seller_user.name}\n{role['description']}\n"
+                                                              f"Ventas: {sells_msg}",
+                                                  colour=discord.colour.Color.orange())
+                            if role["image"] != "none":
+                                embed.set_image(url=role["image"])
+
+                            await msg.edit(embed=embed)
+
+                            na, transaction = new_transaction(
+                                buyer_euser, seller_euser, quantity, database_name, channel.name,
+                                'compra en tienda de roles')
+
+                            await payload.member.add_roles(role_d)
+                            await payload.member.send(f"Has adquirido el rol: {role['title']}\n"
+                                                      f"Vendedor: {seller_user.name} ID: {seller_user.id}\n"
+                                                      f"ID transaccion: {transaction}")
+                            await seller_user.send(
+                                f"Compra del Comprador: {payload.member.name} ID: {payload.member.id}"
+                                f"Rol: {role['title']}\n"
+                                f"ID transaccion: {transaction}")
+                        else:
+                            await payload.member.send(
+                                f"El rol que deseas comprar ya esta agotado, lo sentimos "
+                                f"{payload.member.name}")
+                    else:
+                        await payload.member.send(
+                            f"No tienes suficientes {global_settings.coin_name} para esta compra.")
+                else:
+                    await payload.member.send(
+                        f"no estas registrado, registrate con {global_settings.prefix}registro")
+                pass
+        else:
+            if str(payload.emoji) == "❌":
+                await msg.delete()
+                delete("_id", payload.message_id, database_name,
+                       CollectionNames.shop.value)
+
+                await seller_user.send(f"has eliminado tu rol {role['title']}")
+
+    try:
+        await msg.remove_reaction(payload.emoji, payload.member)
+    except:
+        pass

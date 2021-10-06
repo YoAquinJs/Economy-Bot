@@ -4,6 +4,7 @@ from enum import Enum
 class CollectionNames(Enum):
     bugs = "bugs"
     shop = "shop"
+    role_shop = "role_shop"
     forge = "forge"
     deregisters = "deregisters"
     users = "users"
