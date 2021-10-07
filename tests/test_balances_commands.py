@@ -155,4 +155,3 @@ async def test_buscar_usuarios(bot):
         value=f"ID:{user2.id}\nmonedas:0.0")
 
     assert dpytest.embed_eq(embed, desired_embed)
-

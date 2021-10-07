@@ -41,4 +41,3 @@ class BlackLists(Enum):
     bug_report = "b"
     shop = "s"
     transactions = "t"
-
