@@ -1,5 +1,6 @@
 from typing import List
 
+from database.db_utils import query
 from database.mongo_client import get_mongo_client
 from models.enums import CollectionNames
 from utils.utils import get_global_settings
@@ -38,7 +39,7 @@ class EconomyUser():
         self.dbcollection = get_mongo_client(
         )[database_name][CollectionNames.users.value]
 
-    def register(self) -> bool:
+    def register(self, database_name) -> bool:
         """Registra al usuario a la economias
 
         Raises:
@@ -58,12 +59,15 @@ class EconomyUser():
 
         # Registra al usuario
         gl = get_global_settings()
+        de_register = query("user_id", self.id, database_name, CollectionNames.deregisters.value)
+        balance = gl.initial_number_of_coins if de_register is None else 0.0
+
         self.dbcollection.insert_one({
             '_id': self._id,
             'name': self.name,
-            'balance': gl.initial_number_of_coins
+            'balance': balance
         })
-        self.balance = Balance(0.0, self)
+        self.balance = Balance(balance, self)
 
         return True
 

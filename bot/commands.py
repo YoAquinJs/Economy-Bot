@@ -89,9 +89,10 @@ async def register(ctx: Context):
     new_user = EconomyUser(ctx.author.id, db_name,
                            name=ctx.author.name)
 
-    registered = new_user.register()
+    registered = new_user.register(db_name)
     if registered:
-        await send_message(ctx, f'Has sido añadido a la {global_settings.economy_name} {new_user.name}, tienes {new_user.balance} {global_settings.coin_name}')
+        await send_message(ctx, f'Has sido añadido a la {new_user.balance.balance} {new_user.name}, '
+                                f'tienes {new_user.balance} {global_settings.coin_name}')
     else:
         await send_message(ctx, f'{new_user.name} ya estas registrado')
 
