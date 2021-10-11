@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from typing import Mapping
 
 from database import db_utils
 from database.db_utils import CollectionNames
