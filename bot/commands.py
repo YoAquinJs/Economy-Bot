@@ -21,6 +21,7 @@ import core.black_list
 
 from utils.utils import *
 from models.enums import ProductStatus, TransactionStatus, BlackLists
+from models.economy_user import *
 
 client = get_client()
 slash = SlashCommand(client, sync_commands=True)
@@ -110,10 +111,10 @@ async def register(ctx: SlashContext):
     new_user = EconomyUser(ctx.author.id, db_name,
                            name=ctx.author.name)
 
-    registered = new_user.register()
+    registered = new_user.register(db_name)
     if registered:
         await ctx.send(f'Has sido añadido a la {global_settings.economy_name} {new_user.name}, tienes '
-                       f'{global_settings.initial_number_of_coins} {global_settings.coin_name}\n'
+                       f'{new_user.balance.balance} {global_settings.coin_name}\n'
                        f'Escribe */ayuda* para informacion mas detalla de como interactuar con el bot')
     else:
         await ctx.send(f'{new_user.name} ya estas registrado')

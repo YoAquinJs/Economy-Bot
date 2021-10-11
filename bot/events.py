@@ -61,6 +61,8 @@ async def on_command_error(ctx, error):
             dev = await client.fetch_user(dev_id)
             await dev.send(f"BUG REPORT: {error_msg}")
         msg = f"{msg}, ah sido reportado a los desarrolladores"
+
+        await send_message(ctx, msg)
         raise error
 
     await send_message(ctx, msg)

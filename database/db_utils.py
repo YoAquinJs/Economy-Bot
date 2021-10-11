@@ -1,7 +1,6 @@
 """El módulo db_utils contiene metodos que acceden y modifican datos en la base de datos de MongoDB"""
 
 from bson.objectid import ObjectId
-from models.economy_user import EconomyUser
 from models.enums import CollectionNames
 
 from database.mongo_client import get_mongo_client
@@ -130,29 +129,29 @@ def exists(key: str, value, database_name: str, collection: str):
     return True
 
 
-def get_random_user(database_name: str) -> EconomyUser:
-    """Obtiene un _id aleatorio de un usuario en la base de datos de Mongo
-
-        Args:
-                database_name (str): Nombre de la base de datos de mongo
-                collection (str): Nombre de la colleccion en la cual se buscara el archivo
-
-        Returns:
-                dict: Es un diccionario con la informacion del archivo
-    """
-
-    cursor = _mongo_client[database_name][CollectionNames.users.value].aggregate([
-        {"$match": {"start_time": {"$exists": False}}},
-        {"$sample": {"size": 1}}
-    ])
-
-    rnd_data = None
-    for i in cursor:
-        rnd_data = i
-
-    random_user = EconomyUser(rnd_data['_id'], database_name)
-    random_user.get_data_from_dict(rnd_data)
-    return random_user
+#def get_random_user(database_name: str) -> EconomyUser:
+#    """Obtiene un _id aleatorio de un usuario en la base de datos de Mongo
+#
+#        Args:
+#                database_name (str): Nombre de la base de datos de mongo
+#                collection (str): Nombre de la colleccion en la cual se buscara el archivo
+#
+#        Returns:
+#                dict: Es un diccionario con la informacion del archivo
+#    """
+#
+#    cursor = _mongo_client[database_name][CollectionNames.users.value].aggregate([
+#        {"$match": {"start_time": {"$exists": False}}},
+#        {"$sample": {"size": 1}}
+#    ])
+#
+#    rnd_data = None
+#    for i in cursor:
+#        rnd_data = i
+#
+#    random_user = EconomyUser(rnd_data['_id'], database_name)
+#    random_user.get_data_from_dict(rnd_data)
+#    return random_user
 
 
 def delete_database_guild(database_name: str):
