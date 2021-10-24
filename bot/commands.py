@@ -814,6 +814,7 @@ async def reset_economy(ctx: SlashContext):
                             option_type=4, required=False)],
              connector={"precio": "price", "titulo": "title", "descripcion": "description", "rol": "role",
                         "imagen": "image", "ventas_maximas": "max_sells"})
+@commands.has_permissions(administrator=True)
 async def sell_role_in_shop(ctx: SlashContext, price, title, description, role, image="none", max_sells=0):
     """Comando para crear una interfaz de venta a un producto o servicio
 
@@ -881,6 +882,7 @@ async def sell_role_in_shop(ctx: SlashContext, price, title, description, role, 
                             option_type=8, required=False)],
              connector={"id": "_id", "precio": "price", "titulo": "title", "descripcion": "description",
                         "imagen": "image", "rol": "role"})
+@commands.has_permissions(administrator=True)
 async def edit_role_in_shop(ctx: SlashContext, _id, price=0, title="0", description="0", image="0", role="0"):
     """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
        haran cambios
@@ -943,6 +945,7 @@ async def edit_role_in_shop(ctx: SlashContext, _id, price=0, title="0", descript
               create_option(name="id", description="identificador del rol (el id solo debe contener numeros)",
                             option_type=3, required=True)],
              connector={"id": "_id"})
+@commands.has_permissions(administrator=True)
 async def del_role_in_shop(ctx: SlashContext, _id):
     """Comando para eliminar una interfaz de venta a un producto o servicio
 
