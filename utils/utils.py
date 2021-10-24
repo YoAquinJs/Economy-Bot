@@ -55,4 +55,4 @@ def round(num):
         if str_num[i] == ".":
             dot_index = i
             break
-    return float(str_num[0:dot_index + _global_settings["max_decimals"] + 1])
+    return float(str_num[0:dot_index + get_global_settings().max_decimals + 1])

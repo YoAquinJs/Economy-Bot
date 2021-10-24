@@ -121,7 +121,8 @@ class Role:
 
     def modify_on_db(self, new_price, new_title, new_description, new_image, new_role, sells):
         edit_log = f"{utils.utils.get_time()}: "
-        if float(new_price) != 0:
+
+        if new_price != 0:
             edit_log += f"{new_price}, "
             self.price = new_price
         if new_title != '0':
