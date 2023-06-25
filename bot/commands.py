@@ -33,7 +33,7 @@ async def stop_bot(ctx: Context):
     """
     for dev_id in global_settings.dev_ids:
         if dev_id == ctx.author.id:
-            await client.logout()
+            await send_message(ctx, f"Bot stoped")
             await client.close()
 
 
@@ -89,9 +89,10 @@ async def register(ctx: Context):
     new_user = EconomyUser(ctx.author.id, db_name,
                            name=ctx.author.name)
 
-    registered = new_user.register(db_name)
+    registered = new_user.register()
+    
     if registered:
-        await send_message(ctx, f'Has sido añadido a la {new_user.balance.balance} {new_user.name}, '
+        await send_message(ctx, f'Has sido añadido a la {global_settings.economy_name} {new_user.name}, '
                                 f'tienes {new_user.balance} {global_settings.coin_name}')
     else:
         await send_message(ctx, f'{new_user.name} ya estas registrado')
@@ -134,8 +135,7 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
     receptor_t = EconomyUser(receptor.id, database_name, name=receptor.name, roles=[
         rol.name for rol in receptor.roles if rol.name != "@everyone"])
 
-    status, transaction_id = core.transactions.new_transaction(
-        sender, receptor_t, quantity, database_name, channel_name)
+    status, transaction_id = core.transactions.new_transaction(sender, receptor_t, quantity, database_name, channel_name)
     if status == TransactionStatus.negative_quantity:
         await send_message(ctx, f"Cantidad invalida. No puedes enviar cantidades negativas o ningun {global_settings.coin_name}.")
     elif status == TransactionStatus.sender_not_exists:
@@ -375,8 +375,7 @@ async def validate_transaction(ctx: Context, _id: str):
         _id (float): Cantidad de monedas a imprimir
     """
     database_name = get_database_name(ctx.guild)
-    transaction = query_id(
-        _id, database_name, CollectionNames.transactions.value)
+    transaction = query("_id", _id, database_name, CollectionNames.transactions.value)
 
     if transaction is None:
         await send_message(ctx, "ID invalido.")
@@ -542,12 +541,11 @@ async def stopforge(ctx: Context):
     core.economy_management.stop_forge_coins(database_name)
 
 
-@client.command(name="init")
+@client.command(name="initforge")
 @commands.has_permissions(administrator=True)
 async def init_economy(ctx: Context):
     """Con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario
-        random y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos, estos
-        logs deben ser extraidos del host para poder realizar las estadisticas del experimento
+        random y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos
     Args:
         ctx (Context): Context de Discord
     """
@@ -638,7 +636,7 @@ async def admin_help_cmd(ctx: Context):
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}init",
+        name=f"{client.command_prefix}initforge",
         value=f"Inicializa el forgado de {global_settings.coin_name}."
     )
 
