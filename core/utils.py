@@ -1,10 +1,12 @@
+
+
 from typing import Tuple
 
 from models.economy_user import EconomyUser
 from models.logs import *
 
-def send_unregistered_log(user: EconomyUser, database_name: str, motive: str):
-    """Anula el registro de un usuario en la base de datos de la economia y manda el log
+def send_unregistered_log(user: EconomyUser, motive: str):
+    """Desregistro de un usuario en la base de datos de la economia y manda el log
 
     Args:
         user (EconomyUser): usuario
@@ -13,7 +15,7 @@ def send_unregistered_log(user: EconomyUser, database_name: str, motive: str):
     """
 
     desregister_log = UnregisterLog(user.id, user.name, user.balance.value, motive)
-    desregister_log.send_log_to_db(database_name)
+    desregister_log.send_log_to_db(user.database_name)
 
 
 def report_bug_log(user_id: int, title: str, description: str, command: str, database_name: str) -> Tuple[bool, BugLog]:

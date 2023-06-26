@@ -1,79 +1,85 @@
+"""Este modulo contiene los objetos modelo EconomyUser y Balance para su uso en otros modulos"""
+
 from typing import List
 
-from database.db_utils import query
-from database.mongo_client import get_mongo_client
-from models.enums import CollectionNames
+from database import db_utils
 from utils.utils import get_global_settings
+from models.enums import CollectionNames
+
+_global_settings = get_global_settings()
 
 
 class EconomyUser():
-    """Sirve para identificar a un usuario en la economia y llevar el registro de sus monedas
+    """Modelo de usuario en la economia
 
     id (str): id del usuario
     name (str): nombre del usuario
     balance (float): moendas del nuevo usuario registrado en la economia
     roles (List[str]): roles del usuario.
     """
+    
     _id: int = 0
     name: str = ''
     balance = None
-
-    def __init__(self, _id: int, database_name: str = 'test_database',
-                 name: str = '', roles: List[str] = []) -> None:
+    database_name = ''
+    
+    def __init__(self, _id: int, database_name: str = 'none', name: str = '', roles: List[str] = []) -> None:
         """Crea un EconomyUser
 
         Args:
             _id (int): id del usuario
             name (str): nombre del usuario. Defaults to ''
             roles (List[str], optional): roles del usuario. Defaults to [].
-            database_name (str, optional): nombre de la base de datos de mongo. Defaults to 'e_database'.
 
         Raises:
             NotFoundEconomyUser: Cuando el usuario no fue encontrado en la base de datos
             RegisteredUser: Cuando es un nuevo usuario y se quiere registar pero ya esta registrado
             ValueError: Cuando un usuario se registra su nombre no puede estar vacio
         """
-        self.name = name
+        
         self._id = _id
+        self.name = name
         self.roles = roles
-        self.dbcollection = get_mongo_client(
-        )[database_name][CollectionNames.users.value]
+        self.database_name = database_name
 
-    def register(self, database_name) -> bool:
-        """Registra al usuario a la economias
+    def register(self) -> bool:
+        """Registra al usuario a la economia
 
         Raises:
             ValueError: Cuando un usuario se registra su nombre no puede estar vacio
 
         Returns:
-            bool: Se registro, si es False es porque el usuario ya estaba registrado
+            bool: Falso si el usuario ya estaba registrado, de contrario verdadero
         """
-        # Checa si el usuario no esta registrado
-        db_result = self.dbcollection.find_one(
-            {'_id': self.id}, {'_id': True})
-        if db_result != None:
-            return False
 
         if self.name == '':
             raise ValueError('Nombre vacio')
 
-        # Registra al usuario
-        gl = get_global_settings()
-        de_register = query("user_id", self.id, database_name, CollectionNames.deregisters.value)
-        balance = gl.initial_number_of_coins if de_register is None else 0.0
+        if db_utils.query("_id", self.id, self.database_name, CollectionNames.users.value) != None:
+            return False
 
-        self.dbcollection.insert_one({
+        de_register = db_utils.query("user_id", self.id, self.database_name, CollectionNames.deregisters.value)
+        
+        if de_register is not None:
+            balance = de_register["final_balance"]
+            db_utils.delete("_id", de_register["_id"], self.database_name, CollectionNames.deregisters.value)
+        else:
+            balance = _global_settings.initial_number_of_coins
+            
+        db_utils.insert({
             '_id': self._id,
             'name': self.name,
             'balance': balance
-        })
+        }, self.database_name, CollectionNames.users.value)
         self.balance = Balance(balance, self)
 
         return True
 
     def unregister(self):
-        """Elimina al usuario de la base de datos"""
-        self.dbcollection.delete_one({'_id': self._id})
+        """Elimina al usuario de la base de datos
+        """
+        
+        db_utils.delete('_id', self._id, self.database_name, CollectionNames.users.value)
 
     def get_data_from_db(self) -> bool:
         """Trae los datos del usuario de la base de datos
@@ -81,10 +87,9 @@ class EconomyUser():
         Returns:
             bool: Dice si el usuario existe
         """
-        # se pide el balance del usuario desde la base de datos
-        db_result = self.dbcollection.find_one(
-            {'_id': self.id}, {'balance': 1, 'name': 1, '_id': False})
-        # Si el usuario no existe
+
+        db_result = db_utils.query('_id', self.id, self.database_name, CollectionNames.users.value)
+
         if db_result == None:
             return False
 
@@ -94,6 +99,13 @@ class EconomyUser():
         return True
 
     def get_data_from_dict(self, data):
+        """Llena las propiedades del objeto a partir de un diccionario
+
+        Args:
+            data (dict): Diccionario con los datos del EconomyUser
+
+        """
+
         self._id = data['_id']
         self.name = data['name']
         self.balance = Balance(data['balance'], self)
@@ -104,27 +116,36 @@ class EconomyUser():
 
 
 class Balance:
+    """Modelo de balance de usuario
+
+    balance (float): Cantidad de monedas del usuario
+    user (EconomyUser): Usuario que contiene el balance
+    """
+
+    balance = 0
+    user = None
     def __init__(self, balance: float, user: EconomyUser):
+        """Crea un Balance
+
+        Args:
+            balance (float): id del usuario
+            user (EconomyUser): usuario que contiene el 
+        """
+
         self.balance = balance
         self.user = user
 
+
     def __iadd__(self, add):
-        self.user.dbcollection.update_one({'_id': self.user._id, }, {
-            '$inc': {'balance': add}
-        })
         self.balance += add
+        db_utils.modify("_id", self.user._id, "balance", self.balance, self.user.database_name, CollectionNames.users.value)
+        return self
 
     def __isub__(self, sub):
-        if self.balance < sub:
-            self.user.dbcollection.update_one({'_id': self.user._id, }, {
-                '$set': {'balance': 0.0}
-            })
-
-        self.user.dbcollection.update_one({'_id': self.user._id, }, {
-            '$inc': {'balance': -sub}
-        })
-
         self.balance -= sub
+        db_utils.modify("_id", self.user._id, "balance", self.balance, self.user.database_name, CollectionNames.users.value)
+        return self
+
 
     def __repr__(self):
         return str(self.balance)

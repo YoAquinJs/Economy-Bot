@@ -1,12 +1,12 @@
 from typing import Tuple
 
 from utils.utils import get_global_settings, get_time
-from models.economy_user import EconomyUser
+from models.economy_user import EconomyUser, Balance
 from models.logs import *
 from models.enums import TransactionStatus
 
 
-def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float, database_name: str, channel_name: str, type: str = 'transferencia') -> Tuple[TransactionStatus, str]:
+def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float, database_name: str, channel_name: str, type: str = 'transferencia') -> Tuple[TransactionStatus, str, Balance, Balance]:
     """Hace una transaccion entre usuarios
 
     Args:
@@ -17,7 +17,7 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
         channel_name (str): Nombre del canal
 
     Returns:
-        Tuple[str, str]: [status de la transaccion, id de la transaccion]
+        Tuple[str, str, Balance, Balance]: [status de la transaccion, id de la transaccion, balance final del enviador, balance final del recividor]
     """
 
     global_settings = get_global_settings()
@@ -44,8 +44,7 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
     receptor.balance += quantity
 
     # # Se hace el log de la transaccion
-    transaction_log = TransactionLog(
-        get_time(), type, sender, receptor, quantity, channel_name)
-    transaccion_id = transaction_log.send_log_to_db(database_name)
+    transaction_log = TransactionLog(get_time(), type, sender, receptor, quantity, channel_name)
+    transaccion_id = transaction_log.send_log_to_db(database_name).inserted_id
 
-    return TransactionStatus.succesful, transaccion_id
+    return TransactionStatus.succesful, transaccion_id, sender.balance, receptor.balance

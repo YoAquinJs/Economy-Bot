@@ -1,13 +1,10 @@
 """Registra todos los comandos del bot"""
 
-from models.product import Product
-from database import db_utils
-from models.economy_user import EconomyUser
 from discord.ext import commands
 from discord.ext.commands import Context, BadArgument
+from bson import ObjectId
 
-from database.db_utils import *
-from utils.utils import get_global_settings
+from database import db_utils
 from bot.discord_client import get_client
 from bot.bot_utils import *
 
@@ -17,24 +14,14 @@ import core.transactions
 import core.store
 import core.users
 
+from models.product import Product
+from models.economy_user import EconomyUser
+from models.enums import ProductStatus, TransactionStatus, CollectionNames
+from models.logs import UnregisterLog
 from utils.utils import *
-from models.enums import ProductStatus, TransactionStatus
 
 client = get_client()
 global_settings = get_global_settings()
-
-
-@client.command(name="stop")
-async def stop_bot(ctx: Context):
-    """Envia un mensaje con el ping del bot
-
-    Args:
-        ctx (Context): Context de discord
-    """
-    for dev_id in global_settings.dev_ids:
-        if dev_id == ctx.author.id:
-            await send_message(ctx, f"Bot stoped")
-            await client.close()
 
 
 @client.command(name="ping")
@@ -44,6 +31,7 @@ async def ping_chek(ctx: Context):
     Args:
         ctx (Context): Context de discord
     """
+    
     await send_message(ctx, f"latencia: {round(client.latency * 1000)}ms")
 
 
@@ -57,6 +45,7 @@ async def report_bug(ctx: Context, command: str, *, info: str):
         info (str): Titulo"/"descripcion del bug
 
     """
+    
     database_name = get_database_name(ctx.guild)
     title_description = key_split(info, "/")
 
@@ -78,7 +67,7 @@ async def report_bug(ctx: Context, command: str, *, info: str):
 
 @client.command(name="registro")
 async def register(ctx: Context):
-    """ Comando para que un usuario se registre, en este se añade un nuevo archivo a la base de datos de balances de
+    """Comando para que un usuario se registre, en este se añade un nuevo archivo a la base de datos de balances de
         usuarios y su cantidad de monedas correspondientes que inicia en 0
 
     Args:
@@ -86,8 +75,7 @@ async def register(ctx: Context):
     """
 
     db_name = get_database_name(ctx.guild)
-    new_user = EconomyUser(ctx.author.id, db_name,
-                           name=ctx.author.name)
+    new_user = EconomyUser(ctx.author.id, db_name, name=ctx.author.name)
 
     registered = new_user.register()
     
@@ -100,20 +88,22 @@ async def register(ctx: Context):
 
 @client.command(name="desregistro")
 async def de_register(ctx: Context, *, motive="nulo"):
-    """ Comando para que un usuario se des registre, su balance se elimina de la base de datos de Mongo
+    """Comando para que un usuario se des registre, su balance se elimina de la base de datos de Mongo
 
     Args:
         ctx (Context): Context de discord
         motive (str): Motivo del des registro, por defecto es nulo
     """
 
-    db_name = get_database_name(ctx.guild)
-    user = EconomyUser(ctx.author.id, db_name)
+    user = EconomyUser(ctx.author.id, get_database_name(ctx.guild))
     user_exists = user.get_data_from_db()
+    
     if user_exists:
         # TODO: Checar si tiene productos en la tienda
         user.unregister()
-        core.utils.send_unregistered_log(user, db_name, motive)
+        desregister_log = UnregisterLog(user._id, user.name, user.balance.value, motive)
+        desregister_log.send_log_to_db(user.database_name)
+
         await send_message(ctx, f'{user.name} has salido de la {global_settings.economy_name}, lamentamos tu partida')
 
 
@@ -126,16 +116,15 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
         quantity (float): Cantidad a transferir
         receptor (discord.Member): Mención a un usuario de discord
     """
+    
     database_name = get_database_name(ctx.guild)
     channel_name = ctx.message.channel.name
 
-    sender = EconomyUser(ctx.author.id, database_name, name=ctx.author.name, roles=[
-        rol.name for rol in ctx.author.roles if rol.name != "@everyone"])
+    sender = EconomyUser(ctx.author.id, database_name)
+    receptor_t = EconomyUser(receptor.id, database_name)
 
-    receptor_t = EconomyUser(receptor.id, database_name, name=receptor.name, roles=[
-        rol.name for rol in receptor.roles if rol.name != "@everyone"])
-
-    status, transaction_id = core.transactions.new_transaction(sender, receptor_t, quantity, database_name, channel_name)
+    status, transaction_id, sender_balance, receptor_balance = core.transactions.new_transaction(sender, receptor_t, quantity, database_name, channel_name)
+    
     if status == TransactionStatus.negative_quantity:
         await send_message(ctx, f"Cantidad invalida. No puedes enviar cantidades negativas o ningun {global_settings.coin_name}.")
     elif status == TransactionStatus.sender_not_exists:
@@ -149,11 +138,11 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
     elif status == TransactionStatus.succesful:
         await send_message(ctx, "Transacción completada.")
         await ctx.author.send(f"Le transferiste al usuario {receptor.name}, ID: {receptor.id}, {quantity} "
-                              f"{global_settings.coin_name}, tu saldo actual es de {sender.balance} {global_settings.coin_name}.\n"
+                              f"{global_settings.coin_name}, tu saldo actual es de {sender_balance.value} {global_settings.coin_name}.\n"
                               f"ID de transaccion: {transaction_id}")
 
         await receptor.send(f"El usuario {ctx.author.name}, ID: {ctx.author.id}, te ha transferido {quantity} "
-                            f"{global_settings.coin_name}, tu saldo actual es de {receptor_t.balance} {global_settings.coin_name}.\n"
+                            f"{global_settings.coin_name}, tu saldo actual es de {receptor_balance.value} {global_settings.coin_name}.\n"
                             f"ID de transacción: {transaction_id}")
 
 
@@ -164,6 +153,7 @@ async def get_coins(ctx: Context):
     Args:
         ctx (Context): Context de discord
     """
+    
     database_name = get_database_name(ctx.guild)
     user = EconomyUser(ctx.author.id, database_name)
     exists = user.get_data_from_db()
@@ -183,6 +173,7 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
         price (float): Precio del producto
         info (str): "Título"/"Descripción" del producto
     """
+    
     if len(info) == 0:
         await send_message(ctx, "Debes ingresar el nombre de la persona a la que deseas transferir.")
         return
@@ -281,8 +272,7 @@ async def del_product_in_shop(ctx: Context, _id: str):
         await send_message(ctx, f"ID invalido.", 0, True)
         return
 
-    balance = query("_id", ctx.author.id, database_name,
-                    CollectionNames.users.value)
+    balance = db_utils.query("_id", ctx.author.id, database_name, CollectionNames.users.value)
     if balance is None:
         await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", 0, True)
         return
@@ -316,8 +306,9 @@ async def get_products_in_shop(ctx: Context):
     Args:
         ctx (Context): Context de Discord
     """
+    
     database_name = get_database_name(ctx.guild)
-    balance = query("_id", ctx.author.id, database_name,
+    balance = db_utils.query("_id", ctx.author.id, database_name,
                     CollectionNames.users.value)
     if balance is None:
         await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.")
@@ -339,29 +330,33 @@ async def get_products_in_shop(ctx: Context):
 
 
 @client.command(name="usuario")
-async def get_user_by_name(ctx: Context, *, _user: str):
+async def get_user_by_name(ctx: Context, _user: discord.Member | str):
     """Comando para buscar todos los usuarios que empiecen por _user
 
     Args:
         ctx (Context): Context de Discord
-        _user (str): Nombre a buscar
+        _user (discord.Member | str): Nombre o mencion de un usuario a buscar
     """
 
-    database_name = get_database_name(ctx.guild)
-    if _user.startswith("@"):
-        _user = _user[1:len(_user)]
+    users = []
+    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados", description=f"Tabla de los usuarios con el nombre especificado")
 
-    users = core.users.get_users_starting_with(_user, database_name)
-    embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados",
-                          description=f"Tabla de los usuarios con el nombre especificado")
-
-    if len(users) == 0:
-        embed.add_field(name="Nada", value="No se encontró ningún usuario.")
+    if isinstance(_user, str):
+        users = core.users.get_users_starting_with(_user, get_database_name(ctx.guild))
+        
+        if len(users) == 0:
+            embed.add_field(name="Ninguno", value="No se encontró ningún usuario.")
+    else:
+        fetched_user = EconomyUser(_user.id, get_database_name(ctx.guild))
+        if fetched_user.get_data_from_db() is True:
+            embed.add_field(
+                name=f"{fetched_user.name}",
+                value=f"ID: {fetched_user._id}\n{global_settings.coin_name}: {fetched_user.balance}")
 
     for user in users:
         embed.add_field(
             name=f"{user.name}",
-            value=f"ID:{user.id}\n{global_settings.coin_name}:{user.balance}")
+            value=f"ID: {user.id}\n{global_settings.coin_name}: {user.balance}")
 
     await ctx.channel.send(embed=embed)
 
@@ -372,10 +367,10 @@ async def validate_transaction(ctx: Context, _id: str):
 
     Args:
         ctx (Context): Context de Discord
-        _id (float): Cantidad de monedas a imprimir
+        _id (str): Cantidad de monedas a imprimir
     """
-    database_name = get_database_name(ctx.guild)
-    transaction = query("_id", _id, database_name, CollectionNames.transactions.value)
+    
+    transaction = db_utils.query("_id", ObjectId(_id), get_database_name(ctx.guild), CollectionNames.transactions.value)
 
     if transaction is None:
         await send_message(ctx, "ID invalido.")
@@ -487,14 +482,17 @@ async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
         quantity (float): Cantidad de monedas a imprimir
         receptor_id (str): Mención al usuario receptor de las monedas
     """
+    
     if quantity <= 0:
         await send_message(ctx, f"No puedes imprimir cantidades negativas o cero {global_settings.coin_name}.")
         return
+    
     quantity = round(quantity, global_settings.max_decimals)
 
     database_name = get_database_name(ctx.guild)
     receptor_b = EconomyUser(receptor.id, database_name)
     recipient_is_registered = receptor_b.get_data_from_db()
+    
     if not recipient_is_registered:
         await send_message(ctx, f"{receptor.name} no es un usuario registrado.")
         return
@@ -519,11 +517,13 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
     if quantity <= 0:
         await send_message(ctx, f"No puedes imprimir cantidades negativas o cero {global_settings.coin_name}.")
         return
+    
     quantity = round(quantity, global_settings.max_decimals)
 
     database_name = get_database_name(ctx.guild)
     receptor_b = EconomyUser(receptor.id, database_name)
     recipient_is_registered = receptor_b.get_data_from_db()
+    
     if not recipient_is_registered:
         await send_message(ctx, f"{receptor.name} no es un usuario registrado.")
         return
@@ -553,7 +553,7 @@ async def init_economy(ctx: Context):
     await ctx.channel.purge(limit=1)
 
     database_name = get_database_name(ctx.guild)
-    users = query_all(database_name, CollectionNames.users.value)
+    users = db_utils.query_all(database_name, CollectionNames.users.value)
     if users.count() == 0:
         await send_message(ctx, 'No hay usuarios registrados.')
         return
@@ -574,7 +574,7 @@ async def init_economy(ctx: Context):
         # Esperar para generar monedas, 900=15min
         await asyncio.sleep(2)
 
-        random_user = db_utils.get_random_user(database_name)
+        random_user = users.get_random_user(database_name)
         random_user.balance += 1
 
         # TODO: Log del forjado (DISCUSION)
@@ -582,7 +582,7 @@ async def init_economy(ctx: Context):
         # Pide toda la base de datos y puede ser muy pesado pedirla en cada forjado
         # embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
         #                       description=f"tabla de todos los usuarios del bot, con su nombre, id y cantidad de monedas")
-        # users = query_all(database_name, CollectionNames.users.value)
+        # users = db_utils.query_all(database_name, CollectionNames.users.value)
         # for user in users:
         #     embed.add_field(
         #         name=f"{user['name']}",
@@ -601,8 +601,8 @@ async def reset_economy(ctx: Context):
     Args:
         ctx (Context): Context de Discord
     """
-    db_name = get_database_name(ctx.guild)
-    core.economy_management.reset_economy(db_name)
+    
+    core.economy_management.reset_economy(get_database_name(ctx.guild))
 
     await send_message(ctx, f"Todos los usuarios tienen 0 {global_settings.coin_name}.")
 

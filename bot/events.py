@@ -1,13 +1,15 @@
 """Discord Events"""
 
-from core.transactions import new_transaction
-from models.economy_user import EconomyUser
 import discord
 from discord.ext import commands
 
 from bot.bot_utils import *
-from utils.utils import get_global_settings
 from bot.discord_client import get_client
+from core.utils import report_bug_log
+from utils.utils import get_global_settings
+from core.transactions import new_transaction
+from models.economy_user import EconomyUser
+
 from database.db_utils import exists, query, delete, CollectionNames
 
 client = get_client()
@@ -41,14 +43,11 @@ async def on_command_error(ctx, error):
         msg = f"{msg}, no tienes permisos para realizar esta accion"
     elif isinstance(error, commands.BotMissingPermissions):
         msg = f"{msg}, de bot no tiene permisos para realizar esta accion"
-
     else:
         error = f"exception in {ctx.command.name}: {error}"
         print(error)
-        for dev_id in global_settings.dev_ids:
-            dev = await client.fetch_user(dev_id)
-            await dev.send(f"BUG REPORT: {error}")
-        msg = f"{msg}, ah sido reportado a los desarrolladores"
+        report_bug_log(ctx.author.id, "Command Error", error, ctx.command.name, get_database_name(ctx.guild))
+        msg = f"{msg}, ya ah sido reportado a los desarrolladores"
 
     await send_message(ctx, msg)
 

@@ -1,7 +1,11 @@
+"""El modulo enums contiene clases Enum usadas en otros modulos que representan valores constantes"""
+
 from enum import Enum
 
 
 class CollectionNames(Enum):
+    """Enum de las colecciones por servidor de discord en la base de datos"""
+
     bugs = "bugs"
     shop = "shop"
     forge = "forge"
@@ -11,6 +15,8 @@ class CollectionNames(Enum):
 
 
 class TransactionStatus(Enum):
+    """Enum del estado de la transaccion despues de procesarse"""
+
     negative_quantity = 'negative_quantity'
     sender_not_exists = 'sender_not_exists'
     receptor_not_exists = 'receptor_not_exists'
@@ -20,6 +26,8 @@ class TransactionStatus(Enum):
 
 
 class ProductStatus(Enum):
+    """Enum de los estados de un producto"""
+
     negative_quantity = 'negative_quantity'
     not_name = 'not_name'
     seller_does_not_exist = 'seller_does_not_exist'

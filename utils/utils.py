@@ -1,11 +1,13 @@
+"""El módulo utils provee metodos generales usadas en demas modulos"""
+
 import json
 import datetime
-import pytz
+from datetime import datetime
 
 from models.global_settings import GlobalSettings
 
+global _global_settings
 _global_settings = None
-
 
 def get_global_settings() -> GlobalSettings:
     """Lee y parsea los settings.json a un diccionario de python
@@ -31,7 +33,7 @@ def get_time():
         srt: String Del Tiempo Actual
     """
 
-    return str(datetime.datetime.now(pytz.utc))
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def key_split(key, split_ch="_"):

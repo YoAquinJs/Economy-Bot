@@ -1,7 +1,6 @@
-"""El módulo db_utils contiene metodos que acceden y modifican datos en la base de datos de MongoDB"""
+"""El modulo db_utils provee metodos CRUD para gestionar la base de datos de MongoDB"""
 
 from models.enums import CollectionNames
-
 from database.mongo_client import get_mongo_client
 
 _mongo_client = get_mongo_client()
@@ -11,7 +10,7 @@ def insert(file: dict, database_name: str, collection: str):
     """Inserta un archivo a la base de datos de Mongo
 
         Args:
-                file (dict): Diccionario con los datos de un log
+                file (dict): Diccionario con los datos del registro
                 database_name (str): Nombre de la base de datos de mongo
                 collection (str): Nombre de la colection a ingresar el archivo
 
@@ -56,6 +55,22 @@ def delete(key: str, value, database_name: str, collection: str):
     return _mongo_client[database_name][collection].delete_one({key: value})
 
 
+def delete_all(database_name: str, collection: str):
+    """Elimina un archivo en la base de datos de Mongo
+
+        Args:
+                key (str): Llave a comparar
+                value (indeterminado): Valor a comparar
+                database_name (str): Nombre de la base de datos de mongo
+                collection (str): Nombre de la colection a ingresar el archivo
+
+        Returns:
+                pymongo.results.DeleteResult: Contiene la información de la eliminacion en MongoDB
+    """
+
+    return _mongo_client[database_name][collection].delete_many({})
+
+
 def query(key: str, value, database_name: str, collection: str):
     """Obtiene un archivo en la base de datos de Mongo
 
@@ -69,23 +84,8 @@ def query(key: str, value, database_name: str, collection: str):
                 dict: Archivo encontrado o None si no existe
     """
 
-    return _mongo_client[database_name][collection].find_one({key: value})
-
-
-def query_id(file_id: str, database_name: str, collection: str):
-    """Obtiene un archivo por su id en la base de datos de Mongo
-
-        Args:
-                file_id (str): id del archivo
-                database_name (str): Nombre de la base de datos de mongo
-                collection (str): Nombre de la colleccion en la cual se buscara el archivo
-
-        Returns:
-                dict: Es un diccionario con la transacción o None si no la encuentra
-    """
-
     try:
-        return _mongo_client[database_name][collection].find_one({"_id": file_id})
+        return _mongo_client[database_name][collection].find_one({key: value})
     except:
         return None
 
@@ -98,10 +98,10 @@ def query_all(database_name: str, collection: str):
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
-                pymongo.cursor.Cursor: Clase iterable sobre Mongo query results de todos los archivos en la coleccion
+                pymongo.cursor.Cursor: Clase iterable sobre los Mongo query results de todos los archivos en la coleccion
     """
 
-    return _mongo_client[database_name][collection].find({})
+    return _mongo_client[database_name][collection]
 
 
 def exists(key: str, value, database_name: str, collection: str):
@@ -114,44 +114,19 @@ def exists(key: str, value, database_name: str, collection: str):
                 collection (str): Nombre de la colleccion en la cual se buscara el archivo
 
         Returns:
-                bool: Dice si existe en la db
+                bool: Existencia en la db
     """
-    doc = _mongo_client[database_name][collection].find_one({
-        key: value
-    }, {
-        key: 1
-    })
+    
+    doc = _mongo_client[database_name][collection].find_one({key: value}, {key: 1})
 
-    if doc == None:
-        return False
-
-    return True
-
-
-#def get_random_user(database_name: str) -> EconomyUser:
-#    """Obtiene un _id aleatorio de un usuario en la base de datos de Mongo
-#
-#        Args:
-#                database_name (str): Nombre de la base de datos de mongo
-#                collection (str): Nombre de la colleccion en la cual se buscara el archivo
-#
-#        Returns:
-#                dict: Es un diccionario con la informacion del archivo
-#    """
-#
-#    cursor = _mongo_client[database_name][CollectionNames.users.value].aggregate([
-#        {"$match": {"start_time": {"$exists": False}}},
-#        {"$sample": {"size": 1}}
-#    ])
-#
-#    rnd_data = None
-#    for i in cursor:
-#        rnd_data = i
-#
-#    random_user = EconomyUser(rnd_data['_id'], database_name)
-#    random_user.get_data_from_dict(rnd_data)
-#    return random_user
+    return doc != None
 
 
 def delete_database_guild(database_name: str):
+    """Elimina la base de datos de un servidor de discord
+
+        Args:
+                database_name (str): Nombre_ID de la base de datos del servidor de discord
+    """
+    
     _mongo_client.drop_database(database_name)

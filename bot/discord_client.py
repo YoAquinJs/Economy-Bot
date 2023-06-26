@@ -14,8 +14,7 @@ def init_client():
     global client
     global_settings = get_global_settings()
 
-    intents = discord.Intents.default()
-    intents.members = True
+    intents = discord.Intents.all()
 
     client = commands.Bot(command_prefix=global_settings.prefix, help_command=None,
                           activity=discord.Game(f"Economy Bot | {global_settings.prefix}ayuda"),

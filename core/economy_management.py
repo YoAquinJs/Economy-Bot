@@ -27,7 +27,9 @@ def reset_economy(database_name: str):
     Args:
         database_name (str): Nombre de la base de datos de mongo
     """
+    
+    db_utils.delete_all(database_name, CollectionNames.deregisters.value)
     users = db_utils.query_all(database_name, CollectionNames.users.value)
-    for user in users:
+    for user in users.find({}):
         db_utils.modify("_id", user['_id'], "balance",
                         0.0, database_name, CollectionNames.users.value)
