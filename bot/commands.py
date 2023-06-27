@@ -1,4 +1,4 @@
-"""Registra todos los comandos del bot"""
+"""Este modulo registra todos los comandos del bot"""
 
 from discord.ext import commands
 from discord.ext.commands import Context, BadArgument
@@ -9,15 +9,14 @@ from bot.discord_client import get_client
 from bot.bot_utils import *
 
 import core.economy_management
-import core.utils
+import core.logger
 import core.transactions
 import core.store
 import core.users
 
 from models.product import Product
 from models.economy_user import EconomyUser
-from models.enums import ProductStatus, TransactionStatus, CollectionNames
-from models.logs import UnregisterLog
+from models.enums import ProductStatus, TransactionStatus, TransactionType, CollectionNames
 from utils.utils import *
 
 client = get_client()
@@ -49,18 +48,13 @@ async def report_bug(ctx: Context, command: str, *, info: str):
     database_name = get_database_name(ctx.guild)
     title_description = key_split(info, "/")
 
-    work_successful, bug = core.utils.report_bug_log(
-        ctx.author.id, title_description[0], title_description[1], command, database_name)
+    work_successful, inserted_id = core.logger.report_bug_log(ctx.author.id, title_description[0], title_description[1], command, database_name)
     if work_successful:
-        for id in global_settings.dev_ids:
-            dev = await client.fetch_user(id)
-            await dev.send(f"BUG REPORT: {bug.__dict__}")
-
         await send_message(ctx, "Reportado")
-        await ctx.author.send("Gracias por reportar un bug, intentaremos solucionarlo lo antes posible.\n"
-                              "Por favor no reenvíe este bug o haga un mal uso del reporte, recuerde"
+        await ctx.author.send(f"Gracias por reportar un bug, intentaremos solucionarlo lo antes posible.\n"
+                              "Por favor no reenvíes este bug o haga un mal uso del reporte, recuerda"
                               "que los desarrolladores también somos personas.")
-
+        await ctx.author.send(f'El ID de tu reporte "{title_description[0]}" es: {inserted_id}')
     else:
         await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro")
 
@@ -78,10 +72,10 @@ async def register(ctx: Context):
     new_user = EconomyUser(ctx.author.id, db_name, name=ctx.author.name)
 
     registered = new_user.register()
-    
     if registered:
+        _, _ = core.transactions.new_transaction(None, new_user, global_settings.initial_number_of_coins, db_name, TransactionType.initial_coins)
         await send_message(ctx, f'Has sido añadido a la {global_settings.economy_name} {new_user.name}, '
-                                f'tienes {new_user.balance} {global_settings.coin_name}')
+                                f'tienes {new_user.balance.balance} {global_settings.coin_name}')
     else:
         await send_message(ctx, f'{new_user.name} ya estas registrado')
 
@@ -94,17 +88,20 @@ async def de_register(ctx: Context, *, motive="nulo"):
         ctx (Context): Context de discord
         motive (str): Motivo del des registro, por defecto es nulo
     """
-
-    user = EconomyUser(ctx.author.id, get_database_name(ctx.guild))
+    
+    database_name = get_database_name(ctx.guild)
+    user = EconomyUser(ctx.author.id, database_name)
     user_exists = user.get_data_from_db()
     
     if user_exists:
-        # TODO: Checar si tiene productos en la tienda
-        user.unregister()
-        desregister_log = UnregisterLog(user._id, user.name, user.balance.value, motive)
-        desregister_log.send_log_to_db(user.database_name)
+        products = core.store.get_user_products(ctx.author.id, database_name)
 
-        await send_message(ctx, f'{user.name} has salido de la {global_settings.economy_name}, lamentamos tu partida')
+        if len(products) == 0:
+            user.unregister()
+            core.logger.send_unregistered_log(user, motive)
+            await send_message(f'{user.name} has salido de la {global_settings.economy_name}, lamentamos tu partida')
+        else:
+            await send_message(f'El usuario posee productos, primero elimina todos tus productos')
 
 
 @client.command(name="transferir")
@@ -121,9 +118,9 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
     channel_name = ctx.message.channel.name
 
     sender = EconomyUser(ctx.author.id, database_name)
-    receptor_t = EconomyUser(receptor.id, database_name)
+    receptor_euser = EconomyUser(receptor.id, database_name)
 
-    status, transaction_id, sender_balance, receptor_balance = core.transactions.new_transaction(sender, receptor_t, quantity, database_name, channel_name)
+    status, transaction_id = core.transactions.new_transaction(sender, receptor_euser, quantity, database_name, TransactionType.user_to_user)
     
     if status == TransactionStatus.negative_quantity:
         await send_message(ctx, f"Cantidad invalida. No puedes enviar cantidades negativas o ningun {global_settings.coin_name}.")
@@ -138,11 +135,11 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
     elif status == TransactionStatus.succesful:
         await send_message(ctx, "Transacción completada.")
         await ctx.author.send(f"Le transferiste al usuario {receptor.name}, ID: {receptor.id}, {quantity} "
-                              f"{global_settings.coin_name}, tu saldo actual es de {sender_balance.value} {global_settings.coin_name}.\n"
+                              f"{global_settings.coin_name}, tu saldo actual es de {sender.balance.value} {global_settings.coin_name}.\n"
                               f"ID de transaccion: {transaction_id}")
 
         await receptor.send(f"El usuario {ctx.author.name}, ID: {ctx.author.id}, te ha transferido {quantity} "
-                            f"{global_settings.coin_name}, tu saldo actual es de {receptor_balance.value} {global_settings.coin_name}.\n"
+                            f"{global_settings.coin_name}, tu saldo actual es de {receptor_euser.balance.value} {global_settings.coin_name}.\n"
                             f"ID de transacción: {transaction_id}")
 
 
@@ -183,9 +180,9 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
     description = name_description[1]
     database_name = get_database_name(ctx.guild)
 
-    new_product = Product(ctx.author.id, title,
-                          description, price, database_name)
+    new_product = Product(ctx.author.id, title, description, price, database_name)
     check = new_product.check_info()
+    
     if check == ProductStatus.negative_quantity:
         await send_message(ctx, "El precio de tu producto no puede ser cero ni negativo.")
         return
@@ -282,7 +279,7 @@ async def del_product_in_shop(ctx: Context, _id: str):
         msg = await ctx.channel.fetch_message(product.id)
         await ctx.channel.purge(limit=1)
         await msg.delete()
-        await ctx.author.send(f"El producto {product.name} ha sido eliminado exitosamente.")
+        await ctx.author.send(f"El producto {product.title} ha sido eliminado exitosamente.")
 
     elif ctx.author.permissions_in(ctx.channel).administrator is True:
         product.delete_on_db()
@@ -539,6 +536,8 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
 async def stopforge(ctx: Context):
     database_name = get_database_name(ctx.guild)
     core.economy_management.stop_forge_coins(database_name)
+    
+    await send_message(ctx, "Se ha detenido el forjado")
 
 
 @client.command(name="initforge")
@@ -553,15 +552,16 @@ async def init_economy(ctx: Context):
     await ctx.channel.purge(limit=1)
 
     database_name = get_database_name(ctx.guild)
-    users = db_utils.query_all(database_name, CollectionNames.users.value)
-    if users.count() == 0:
+    _users = db_utils.query_all(database_name, CollectionNames.users.value)
+
+    if _users.count_documents({}) == 0:
         await send_message(ctx, 'No hay usuarios registrados.')
         return
 
     embed = discord.Embed(colour=discord.colour.Color.gold(), title="Tabla de Usuarios",
                           description=f"Tabla de los usuarios registrados, con su nombre, id y cantidad de {global_settings.coin_name}.")
 
-    for user in users:
+    for user in _users.find({}):
         embed.add_field(
             name=f"{user['name']}",
             value=f"ID:{user['_id']}\n{global_settings.coin_name}:{user['balance']}")
@@ -574,7 +574,7 @@ async def init_economy(ctx: Context):
         # Esperar para generar monedas, 900=15min
         await asyncio.sleep(2)
 
-        random_user = users.get_random_user(database_name)
+        random_user = core.users.get_random_user(database_name)
         random_user.balance += 1
 
         # TODO: Log del forjado (DISCUSION)

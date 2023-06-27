@@ -13,7 +13,6 @@ class CollectionNames(Enum):
     users = "users"
     transactions = "transactions"
 
-
 class TransactionStatus(Enum):
     """Enum del estado de la transaccion despues de procesarse"""
 
@@ -24,6 +23,14 @@ class TransactionStatus(Enum):
     insufficient_coins = 'insufficient_coins'
     succesful = 'succesful'
 
+class TransactionType(Enum):
+    """Enum del tipo de transaccion"""
+
+    initial_coins = 'initial_coins'
+    user_to_user = 'user_to_user'
+    shop_buy = 'shop_buy'
+    admin_to_user = 'admin_to_user'
+    forged = 'forged'
 
 class ProductStatus(Enum):
     """Enum de los estados de un producto"""

@@ -1,4 +1,5 @@
-from database.mongo_client import get_mongo_client
+"""Este modulo contiene el objeto modelo Producto para su uso en otros modulos"""
+
 from typing import Union
 from models.enums import CollectionNames, ProductStatus
 from database import db_utils
@@ -8,7 +9,25 @@ global_settings = get_global_settings()
 
 
 class Product:
-    def __init__(self, user_id: int, title: str, description: str, price: float, database_name, _id: int = -1):
+    """Modelo de un Producto
+    
+    Attributes:
+        _id (int): Id del producto
+        user_id (int): Id del usuario propietario del producto
+        title (str): Titulo del producto
+        description (str): Titulo del producto
+        price (float): Costo del producto
+        database_name (str): Nombre de la base de datos del servidor
+    """
+    
+    _id: int = 0
+    user_id: int = 0
+    title: str = ''
+    description: str = ''
+    price: float = 0.0
+    database_name: str = ''
+     
+    def __init__(self, user_id: int, title: str, description: str, price: float, database_name: str):
         """Product init
 
         Args:
@@ -17,9 +36,8 @@ class Product:
             description (str): descripcion del que vemde el producto
             price (float): precio del que vemde el producto
             database_name (str): nombre de la base de datos de mongo
-            id (int, optional): id del producto. Defaults to -1.
         """
-        self._id = int(_id)
+        
         self.user_id = user_id
         self.title = title
         self.description = description
@@ -37,9 +55,9 @@ class Product:
         Returns:
             Union[object, bool]: Producto, si existe el procto en la base de datos
         """
+        
         product_id = int(product_id)
-        data = db_utils.query('_id', product_id, database_name,
-                              CollectionNames.shop.value)
+        data = db_utils.query('_id', product_id, database_name,  CollectionNames.shop.value)
 
         if data == None:
             return None, False
@@ -63,9 +81,13 @@ class Product:
         Returns:
             Producto: instancia de Producto
         """
+        
         return cls(**dict)
 
     def send_to_db(self):
+        """Registra el producto en la base de datos
+        """
+        
         data = {
             '_id': self._id,
             'user_id': self.user_id,
@@ -73,14 +95,16 @@ class Product:
             'title': self.title,
             'description': self.description
         }
+        
         db_utils.insert(data, self.database_name, CollectionNames.shop.value)
 
     def check_info(self) -> ProductStatus:
-        """Regresa None si no hay ningin error con los datos
+        """Verifica los datos del producto
 
         Returns:
-            ProductStatus: status
+            ProductStatus: Status de validacion de datos
         """
+        
         if self.price <= 0.0:
             return ProductStatus.negative_quantity
 
@@ -92,14 +116,22 @@ class Product:
         if not user_exists:
             return ProductStatus.seller_does_not_exist
 
-        return None
+        return ProductStatus.succesful
 
-    def modify_on_db(self, new_price=0.0, new_title='0', new_description='0'):
+    def modify_on_db(self, new_price=0.0, new_title='\0', new_description='\0'):
+        """Realiza las modificacines pendientes en la base de datos
+
+        Args:
+            new_price (float, optional): Nuevo precio a modificar. Defaults to 0.0.
+            new_title (str, optional): Nuevo titulo a modificar. Defaults to '\0'.
+            new_description (str, optional): Nueva descripcion a modificar. Defaults to '\0'.
+        """
+        
         if new_price != 0.0:
             self.price = new_price
-        if new_title != '0':
+        if new_title != '\0':
             self.title = new_title
-        if new_description != '0':
+        if new_description != '\0':
             self.description = new_description
 
         data = {
@@ -110,16 +142,13 @@ class Product:
             'description': self.description
         }
 
-        m_client = get_mongo_client()
-        m_client[self.database_name][CollectionNames.shop.value].replace_one({
-            '_id': self._id,
-        }, data)
+        db_utils.replace('_id', self._id, data, self.database_name, CollectionNames.shop.value)
 
     def delete_on_db(self):
-        m_client = get_mongo_client()
-        m_client[self.database_name][CollectionNames.shop.value].delete_one({
-            '_id': self._id
-        })
+        """Elimina el producto en la base de datos
+        """
+        
+        db_utils.delete('_id', self._id, self.database_name, CollectionNames.shop.value)
 
     @property
     def id(self) -> int:

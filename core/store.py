@@ -1,4 +1,5 @@
-from database.mongo_client import get_mongo_client
+"""Este modulo se encarga de funcionalidades relacionadas al manejo de productos de usuarios"""
+
 from typing import List
 from utils.utils import get_global_settings
 from database import db_utils
@@ -53,11 +54,8 @@ def get_user_products(user_id: int, database_name: str) -> List[Product]:
         List[Product]: Productos del usuario
     """
     products = []
-    mclient = get_mongo_client()
-    products_query = mclient[database_name][CollectionNames.shop.value].find({
-        'user_id': user_id
-    })
-
+    products_query = db_utils.query('user_id', user_id, database_name, CollectionNames.shop.value, True)
+    
     for p in products_query:
         p['database_name'] = database_name
         product = Product.from_dict(p)

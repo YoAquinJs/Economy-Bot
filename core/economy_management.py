@@ -1,3 +1,5 @@
+"""Este modulo contiene funcionalidades generales de la gestion de la economia de cada servidor de discord"""
+
 from typing import Mapping
 
 from database import db_utils
@@ -7,7 +9,16 @@ from database.db_utils import CollectionNames
 _forge: Mapping[str, bool] = {}
 
 
-def forge_coins(database_name):
+def forge_coins(database_name) -> bool:
+    """Inicia el forjado de monedas
+
+    Args:
+        database_name (str): Nombre de la base de datos del servidor de discord
+
+    Returns:
+        bool: Estado del forjado del servidor
+    """
+    
     global _forge
 
     if not database_name in _forge:
@@ -17,6 +28,12 @@ def forge_coins(database_name):
 
 
 def stop_forge_coins(database_name: str):
+    """Detiene el forjado de monedas
+
+    Args:
+        database_name (str): Nombre de la base de datos del servidor de discord
+    """
+    
     global _forge
     _forge[database_name] = False
 
@@ -28,8 +45,10 @@ def reset_economy(database_name: str):
         database_name (str): Nombre de la base de datos de mongo
     """
     
-    db_utils.delete_all(database_name, CollectionNames.deregisters.value)
+    deregisters = db_utils.query_all(database_name, CollectionNames.deregisters.value)
+    for deregister in deregisters.find({}):
+        db_utils.modify("_id", deregister["_id"], "final_balance", 0, database_name, CollectionNames.deregisters.value)
+    
     users = db_utils.query_all(database_name, CollectionNames.users.value)
     for user in users.find({}):
-        db_utils.modify("_id", user['_id'], "balance",
-                        0.0, database_name, CollectionNames.users.value)
+        db_utils.modify("_id", user['_id'], "balance", 0.0, database_name, CollectionNames.users.value)

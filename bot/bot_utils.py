@@ -17,6 +17,7 @@ async def send_message(ctx, text, title="", time=0, auto_time=False):
         auto_time (bool, optional): Especifica si despues de el tiempo de lectura promedio el mensaje sera eliminado,
         por defecto falso.
     """
+    
     msg_txt = discord.Embed(title=title, description=text,
                             colour=discord.colour.Color.gold())
     msg = await ctx.channel.send(embed=msg_txt)

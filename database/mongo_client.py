@@ -13,8 +13,8 @@ def init_database():
     """Inicializa el Cliente de la base de datos en el BonoboCluster de MongoDB
 
         Args:
-                user (str): Usuario del Cluster de MongoDB
-                password (str): Contraseña del usuario del Cluster de MongoDB
+            user (str): Usuario del Cluster de MongoDB
+            password (str): Contraseña del usuario del Cluster de MongoDB
     """
 
     global __mongo_client
@@ -36,7 +36,7 @@ def get_mongo_client() -> pymongo.MongoClient:
     """Esta función retorna un singleton de pymongo.MongoClient
 
         Returns:
-                pymongo.MongoClient: Cliente para conectarse a una base de datos de MongoDB
+            pymongo.MongoClient: Cliente para conectarse a una base de datos de MongoDB
     """
 
     if __mongo_client is None:

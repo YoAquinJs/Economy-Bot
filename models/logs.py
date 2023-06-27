@@ -1,17 +1,20 @@
 """Este modulo contiene los objetos de los logs de la aplicacion"""
 
+import pymongo
+
 from models.economy_user import EconomyUser
 from database import db_utils
-from models.enums import CollectionNames
+from models.enums import CollectionNames, TransactionType
 
 
 class UnregisterLog:
     """Modelo de un log de desregistro
     
-    user_id (int): Id del usuario que se desregistra
-    user_name (str): Nombre del usuario que se desregistra
-    final_balance (float): Balance del usuario que se desregistra
-    motive (str): Motivo del usuario que se desregistra
+    Attributes:
+        user_id (int): Id del usuario que se desregistra
+        user_name (str): Nombre del usuario que se desregistra
+        final_balance (float): Balance del usuario que se desregistra
+        motive (str): Motivo del usuario que se desregistra
     """
     
     user_id: int = 0
@@ -34,39 +37,34 @@ class UnregisterLog:
         self.final_balance = final_balance
         self.motive = motive
 
-    def send_log_to_db(self, database_name: str) -> str:
+    def send_log_to_db(self, database_name: str):
         """Manda un log a la base de datos de mongo
 
         Args:
-            database_name ([type]): [description]
-
-        Returns:
-            str: id de la transacción
+            database_name (str): Nombre de la base de datos del servidor de discord
         """
         
-        i = db_utils.insert(self.__dict__, database_name, CollectionNames.deregisters.value)
-        return str(i.inserted_id)
+        db_utils.insert(self.__dict__, database_name, CollectionNames.deregisters.value)
 
 
 class TransactionLog:
     """Modelo de un log de una transaccion
     
-    date (str): Id del usuario que se desregistra
-    type (int): Nombre del usuario que se desregistra
-    sender (dict): Balance del usuario que se desregistra
-    receiver (dict): Motivo del usuario que se desregistra
-    quantity (float): Motivo del usuario que se desregistra
-    channel_name (str): Canal en le cual se realizo la transaccion
+    Attributes:
+        date (str): Id del usuario que se desregistra
+        type (TransactionType): Tipo de transaccion
+        sender (User): Usuario que envia la transaccion
+        receiver (User): Usuario que recive la transaccion
+        quantity (float): Monto de la transaccion
     """
 
     date: str = ''
-    type: str = ''
+    type: TransactionType = TransactionType.initial_coins
     sender: dict = {}
     receiver: dict = {}
     quantity: float = 0.0
-    channel_name: str = ''
 
-    def __init__(self, date: str, type: str, sender: EconomyUser, receiver: EconomyUser, quantity: float, channel_name: str):
+    def __init__(self, date: str, type: TransactionType, sender: EconomyUser, receiver: EconomyUser, quantity: float):
         """Crea un TransactionLog
 
         Args:
@@ -75,7 +73,7 @@ class TransactionLog:
             sender (User): usuario que hace la transaccion
             receiver (User): usuario que recive la transaccion
             quantity (float): monto de la transaccion
-            channel_name (str): canal donde se hizo la transaccion
+            type (TransactionType): Tipo de transaccion
         """
 
         self.date = date
@@ -83,26 +81,25 @@ class TransactionLog:
         self.sender_id = sender._id
         self.receiver_id = receiver._id
         self.quantity = quantity
-        self.channel_name = channel_name
 
-    def send_log_to_db(self, database_name: str) -> int:
+    def send_log_to_db(self, database_name: str) -> pymongo.results.InsertOneResult:
         """Manda el log de la transaccion a la base de datos
 
         Args:
             database_name (str): Nombre de la base de datos del servidor de discord
 
         Returns:
-            int: Id del registro del log de la transaccion
+            pymongo.results.InsertOneResult: Contiene la información de la inserción en MongoDB
         """
         
-        return db_utils.insert(self.__dict__, database_name, CollectionNames.transactions.value)
+        return db_utils.insert({**self.__dict__, "type": self.type.value}, database_name, CollectionNames.transactions.value)
 
 
 class BugLog:
     """Modelo de un log de un bug
     
-    user_id (int): Id del usuario que se desregistra
-    user_name (str): Nombre del usuario que se desregistra
+    user_id (int): Id del usuario que envia el bug
+    user_name (str): Nombre del usuario envia el
     final_balance (float): Balance del usuario que se desregistra
     motive (str): Motivo del usuario que se desregistra
     """
@@ -110,9 +107,9 @@ class BugLog:
     title: str = ''
     description: str = ''
     command: str = ''
-
+    
     def __init__(self, title: str, description: str, command: str):
-        """crea un BugLog
+        """Crea un BugLog
 
         Args:
             title (str): titulo del reporte
@@ -124,5 +121,14 @@ class BugLog:
         self.description = description
         self.command = command
 
-    def send_log_to_db(self, database_name: str):
-        db_utils.insert(self.__dict__, database_name, CollectionNames.bugs.value)
+    def send_log_to_db(self, database_name: str) -> pymongo.results.InsertOneResult:
+        """Manda el log del bug a la base de datos
+
+        Args:
+            database_name (str): Nombre de la base de datos del servidor de discord
+            
+        Returns:
+            pymongo.results.InsertOneResult: Contiene la información de la inserción en MongoDB
+        """
+
+        return db_utils.insert(self.__dict__, database_name, CollectionNames.bugs.value)

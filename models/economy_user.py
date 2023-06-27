@@ -1,6 +1,7 @@
 """Este modulo contiene los objetos modelo EconomyUser y Balance para su uso en otros modulos"""
 
 from typing import List
+from typing import Tuple
 
 from database import db_utils
 from utils.utils import get_global_settings
@@ -12,10 +13,11 @@ _global_settings = get_global_settings()
 class EconomyUser():
     """Modelo de usuario en la economia
 
-    id (str): id del usuario
-    name (str): nombre del usuario
-    balance (float): moendas del nuevo usuario registrado en la economia
-    roles (List[str]): roles del usuario.
+    Attributes:
+        id (str): id del usuario
+        name (str): nombre del usuario
+        balance (float): moendas del nuevo usuario registrado en la economia
+        roles (List[str]): roles del usuario.
     """
     
     _id: int = 0
@@ -28,7 +30,8 @@ class EconomyUser():
 
         Args:
             _id (int): id del usuario
-            name (str): nombre del usuario. Defaults to ''
+            database_name(str, optional): Nombre de la base de datos del servidor de discord. Defaults to 'none'
+            name (str, optional): nombre del usuario. Defaults to ''
             roles (List[str], optional): roles del usuario. Defaults to [].
 
         Raises:
@@ -42,14 +45,14 @@ class EconomyUser():
         self.roles = roles
         self.database_name = database_name
 
-    def register(self) -> bool:
+    def register(self) -> Tuple[bool, float]:
         """Registra al usuario a la economia
 
         Raises:
             ValueError: Cuando un usuario se registra su nombre no puede estar vacio
 
         Returns:
-            bool: Falso si el usuario ya estaba registrado, de contrario verdadero
+            Tuple[bool, float]: [Falso si el usuario ya estaba registrado, de contrario verdadero, balance inicial del usuario]
         """
 
         if self.name == '':
@@ -69,11 +72,11 @@ class EconomyUser():
         db_utils.insert({
             '_id': self._id,
             'name': self.name,
-            'balance': balance
+            'balance': 0
         }, self.database_name, CollectionNames.users.value)
         self.balance = Balance(balance, self)
 
-        return True
+        return True, balance
 
     def unregister(self):
         """Elimina al usuario de la base de datos
@@ -118,12 +121,14 @@ class EconomyUser():
 class Balance:
     """Modelo de balance de usuario
 
-    balance (float): Cantidad de monedas del usuario
-    user (EconomyUser): Usuario que contiene el balance
+    Attributes:
+        balance (float): Cantidad de monedas del usuario
+        user (EconomyUser): Usuario que contiene el balance
     """
 
     balance = 0
     user = None
+    
     def __init__(self, balance: float, user: EconomyUser):
         """Crea un Balance
 

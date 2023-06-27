@@ -18,3 +18,12 @@ client.run(global_settings.token)
 
 mongo_client.close_client()
 print("Disconnected")
+
+""""
+    Deployment
+    
+setup settings.json
+
+python3 main.py
+    
+"""
