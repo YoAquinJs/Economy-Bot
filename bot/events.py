@@ -20,7 +20,7 @@ global_settings = get_global_settings()
 
 @client.event
 async def on_ready():
-    """Imprime información del cliente cuando el bot ya está en línea
+    """Imprime información del cliente de discord cuando el bot ya está en línea
     """
     
     print("logged as")

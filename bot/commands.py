@@ -28,7 +28,7 @@ async def ping_chek(ctx: Context):
     """Envia un mensaje con el ping del bot
 
     Args:
-        ctx (Context): Context de discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
     
     await send_message(ctx, f"latencia: {round(client.latency * 1000)}ms")
@@ -39,10 +39,9 @@ async def report_bug(ctx: Context, command: str, *, info: str):
     """Reporta un bug a los desarrolladores
 
     Args:
-        ctx (Context): Context de discord
+        ctx (discord.ext.commands.Context): Context de discord
         command (str): Comando que ocaciono el bug
         info (str): Titulo"/"descripcion del bug
-
     """
     
     database_name = get_database_name(ctx.guild)
@@ -65,7 +64,7 @@ async def register(ctx: Context):
         usuarios y su cantidad de monedas correspondientes que inicia en 0
 
     Args:
-        ctx (Context): Context de discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
 
     db_name = get_database_name(ctx.guild)
@@ -81,12 +80,12 @@ async def register(ctx: Context):
 
 
 @client.command(name="desregistro")
-async def de_register(ctx: Context, *, motive="nulo"):
-    """Comando para que un usuario se des registre, su balance se elimina de la base de datos de Mongo
+async def de_register(ctx: Context, *, motive: str = "nulo"):
+    """Comando para que un usuario se desregistre, creando un UnregisterLog
 
     Args:
-        ctx (Context): Context de discord
-        motive (str): Motivo del des registro, por defecto es nulo
+        ctx (discord.ext.commands.Context): Context de discord
+        motive (str): Motivo del desregistro, por defecto es nulo
     """
     
     database_name = get_database_name(ctx.guild)
@@ -109,13 +108,12 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member):
     """Comando para transferir monedas de la wallet del usuario a otro usuario
 
     Args:
-        ctx (Context): Context de discord
+        ctx (discord.ext.commands.Context): Context de discord
         quantity (float): Cantidad a transferir
         receptor (discord.Member): Mención a un usuario de discord
     """
     
     database_name = get_database_name(ctx.guild)
-    channel_name = ctx.message.channel.name
 
     sender = EconomyUser(ctx.author.id, database_name)
     receptor_euser = EconomyUser(receptor.id, database_name)
@@ -148,7 +146,7 @@ async def get_coins(ctx: Context):
     """Comando para solicitar un mensaje con la cantidad de monedas que el usuario tiene.
 
     Args:
-        ctx (Context): Context de discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
     
     database_name = get_database_name(ctx.guild)
@@ -156,7 +154,7 @@ async def get_coins(ctx: Context):
     exists = user.get_data_from_db()
 
     if exists:
-        await send_message(ctx, f"Tu saldo actual es de {user.balance} {global_settings.coin_name} {ctx.author.name}.")
+        await ctx.author.send(f"Tu saldo actual es de {user.balance} {global_settings.coin_name} {ctx.author.name}.")
     else:
         await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.")
 
@@ -166,7 +164,7 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
     """Comando para crear una interfaz de venta a un producto o servicio
 
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
         price (float): Precio del producto
         info (str): "Título"/"Descripción" del producto
     """
@@ -194,36 +192,29 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
 
     msg = await send_message(ctx, f"Vendedor: {ctx.author.name}\n{name_description[1]}",
                              f"${price} {name_description[0]}")
-    new_product.id = msg.id
+    new_product._id = msg.id
     new_product.send_to_db()
 
-    await ctx.author.send(f"Tu producto ha sido registrado exitosamente. El ID de tu producto es: {new_product.id}")
+    await ctx.author.send(f"Tu producto ha sido registrado exitosamente. El ID de tu producto es: {new_product._id}")
     await msg.add_reaction("🪙")
     await msg.add_reaction("❌")
 
 
 @client.command(name="editproducto")
-async def edit_product_in_shop(ctx: Context, _id, price=0, *, info="0/0"):
+async def edit_product_in_shop(ctx: Context, _id: int, price: float = 0, *, info: str = "\0/\0"):
     """Comando para editar una interfaz de venta a un producto o servicio, en los argumentos con valor por defecto no se
        haran cambios
 
     Args:
-        ctx (Context): Context de Discord
-        _id (str): Id del producto, valor por defecto 0
+        ctx (discord.ext.commands.Context): Context de discord
+        _id (int): Id del producto, valor por defecto 0
         price (float): Precio del producto, valor por defecto 0
-        info (str): "Título"/"Descripción" del producto, valor por defecto 0
+        info (str): "Título"/"Descripción" del producto, valor por defecto "\0/\0"
     """
-
-    try:
-        price = float(price)
-        _id = int(_id)
-    except:
-        raise BadArgument
 
     name_description = key_split(info, "/")
     database_name = get_database_name(ctx.guild)
-    status = core.store.edit_product(
-        _id, ctx.author.id, database_name, price, name_description[0], name_description[1])
+    status = core.store.edit_product(_id, ctx.author.id, database_name, price, name_description[0], name_description[1])
 
     if status == ProductStatus.seller_does_not_exist:
         await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", 0, True)
@@ -237,8 +228,7 @@ async def edit_product_in_shop(ctx: Context, _id, price=0, *, info="0/0"):
         await send_message(ctx, "El precio no puede ser cero ni negativo.", 0, True)
         return
 
-    embed = discord.Embed(title=f"${price} {name_description[0]}", description=f"Vendedor: {ctx.author.name}\n"
-                                                                               f"{name_description[1]}",
+    embed = discord.Embed(title=f"${price} {name_description[0]}", description=f"Vendedor: {ctx.author.name}\n{name_description[1]}",
                           colour=discord.colour.Color.orange())
 
     msg = await ctx.channel.fetch_message(_id)
@@ -249,18 +239,13 @@ async def edit_product_in_shop(ctx: Context, _id, price=0, *, info="0/0"):
 
 
 @client.command(name="delproducto")
-async def del_product_in_shop(ctx: Context, _id: str):
+async def del_product_in_shop(ctx: Context, _id: int):
     """Comando para eliminar una interfaz de venta a un producto o servicio
 
     Args:
-        ctx (Context): Context de Discord
-        _id (str): Id del producto en la base de datos
+        ctx (discord.ext.commands.Context): Context de discord
+        _id (int): Id del producto en la base de datos
     """
-
-    try:
-        _id = int(_id)
-    except:
-        raise BadArgument
 
     database_name = get_database_name(ctx.guild)
     product, product_exists = Product.from_database(_id, database_name)
@@ -301,7 +286,7 @@ async def get_products_in_shop(ctx: Context):
     """Comando para buscar todos los productos del usuario
 
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
     
     database_name = get_database_name(ctx.guild)
@@ -331,7 +316,7 @@ async def get_user_by_name(ctx: Context, _user: discord.Member | str):
     """Comando para buscar todos los usuarios que empiecen por _user
 
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
         _user (discord.Member | str): Nombre o mencion de un usuario a buscar
     """
 
@@ -363,8 +348,8 @@ async def validate_transaction(ctx: Context, _id: str):
     """Comando para validar una transaccion a travez de su id.
 
     Args:
-        ctx (Context): Context de Discord
-        _id (str): Cantidad de monedas a imprimir
+        ctx (discord.ext.commands.Context): Context de discord
+        _id (str): Id de transferencia a validar
     """
     
     transaction = db_utils.query("_id", ObjectId(_id), get_database_name(ctx.guild), CollectionNames.transactions.value)
@@ -387,8 +372,9 @@ async def help_cmd(ctx: Context):
     """Retorna la lista de comandos disponibles, Manda un mensaje con la información de los comandos del bot
 
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
+    
     embed = discord.Embed(title=f"Ayuda | ECONOMY BOT {client.command_prefix}help",
                           colour=discord.colour.Color.orange())
 
@@ -475,9 +461,9 @@ async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
         quantity (float): Cantidad de monedas a imprimir
-        receptor_id (str): Mención al usuario receptor de las monedas
+        receptor (str): Mención al usuario receptor de las monedas
     """
     
     if quantity <= 0:
@@ -508,7 +494,7 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
     Args:
         ctx (Context): Context de discord
         quantity (float): Cantidad que se le va a quitar a usuario
-        receptor_id (str): Mención al usuario que se le van a quitar monedas
+        receptor (str): Mención al usuario que se le van a quitar monedas
     """
 
     if quantity <= 0:
@@ -534,6 +520,12 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
 @client.command(name="stopforge")
 @commands.has_permissions(administrator=True)
 async def stopforge(ctx: Context):
+    """Detiene el forjado de monedas en el servidor
+
+    Args:
+        ctx (discord.ext.commands.Context): Context de discord
+    """
+    
     database_name = get_database_name(ctx.guild)
     core.economy_management.stop_forge_coins(database_name)
     
@@ -545,8 +537,9 @@ async def stopforge(ctx: Context):
 async def init_economy(ctx: Context):
     """Con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario
         random y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos
+        
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
 
     await ctx.channel.purge(limit=1)
@@ -596,10 +589,10 @@ async def init_economy(ctx: Context):
 @client.command(name="reset")
 @commands.has_permissions(administrator=True)
 async def reset_economy(ctx: Context):
-    """Pone los balances de todos los usuarios en 0, Requiere permisos de administrador
+    """Reinicia los balances de todos los usuarios a la configuracion de initial_coins, Requiere permisos de administrador
 
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
     
     core.economy_management.reset_economy(get_database_name(ctx.guild))
@@ -614,8 +607,9 @@ async def admin_help_cmd(ctx: Context):
        bot
 
     Args:
-        ctx (Context): Context de Discord
+        ctx (discord.ext.commands.Context): Context de discord
     """
+
     embed = discord.Embed(title=f"Ayuda | ECONOMY BOT {client.command_prefix}help",
                           colour=discord.colour.Color.orange())
 

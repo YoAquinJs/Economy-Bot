@@ -2,24 +2,25 @@
 
 import asyncio
 import discord
+from discord.ext.commands import Context
 
 current_dir = None
 
-async def send_message(ctx, text, title="", time=0, auto_time=False):
+async def send_message(ctx: Context, text: str, title: str = "\0", time: int = 0, auto_time: bool = False) -> discord.Message:
     """Envía un mensaje, convirtiendo el texto en un embed de discord
 
     Args:
         ctx (discord.ext.commands.Context): Context de discord
         text (str): Contenido del mensaje
-        title (str, optional): titulo del mensaje
-        time (int, optional): Especifica el tiempo a esperar para eliminar el mensaje, si es 0 es permanente,
-        por defecto es 0
-        auto_time (bool, optional): Especifica si despues de el tiempo de lectura promedio el mensaje sera eliminado,
-        por defecto falso.
+        title (str, optional): titulo del mensaje. Defaults to "\0".
+        time (int, optional): Especifica el tiempo a esperar para eliminar el mensaje, si es 0 es permanente. Defaults to 0.
+        auto_time (bool, optional): Especifica si despues de el tiempo de lectura promedio el mensaje sera eliminado. Defaults to False.
+
+    Returns:
+        discord.Message: Mensaje enviado
     """
     
-    msg_txt = discord.Embed(title=title, description=text,
-                            colour=discord.colour.Color.gold())
+    msg_txt = discord.Embed(title=title, description=text, colour=discord.colour.Color.gold())
     msg = await ctx.channel.send(embed=msg_txt)
 
     if auto_time is True:
@@ -40,11 +41,11 @@ async def send_message(ctx, text, title="", time=0, auto_time=False):
 def get_database_name(guild: discord.Guild) -> str:
     """Esta función genera el nombre de la base de datos de una guild de discord
 
-        Args:
-                guild (discord.Guild): Es la información de una Guild de discord
+    Args:
+        guild (discord.Guild): Información de un servidor de discord
 
-        Returns:
-                str: Nombre único de la base de datos para el server de discord
+    Returns:
+        str: Nombre único de la base de datos para el server de discord
     """
 
     name = guild.name

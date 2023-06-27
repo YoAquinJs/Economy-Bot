@@ -1,5 +1,4 @@
-from typing import List
-
+"""Este modulo contiene el modelo de GlobalSettings"""
 
 class GlobalSettings():
     """Clase para manejar los global settings

@@ -17,7 +17,7 @@ class Product:
         title (str): Titulo del producto
         description (str): Titulo del producto
         price (float): Costo del producto
-        database_name (str): Nombre de la base de datos del servidor
+        database_name (str): Nombre de la base de datos del servidor de discord
     """
     
     _id: int = 0
@@ -28,14 +28,14 @@ class Product:
     database_name: str = ''
      
     def __init__(self, user_id: int, title: str, description: str, price: float, database_name: str):
-        """Product init
+        """Crea un producto
 
         Args:
             user_id (int): id del que vemde el producto
             title (str): Titulo del que vemde el producto
             description (str): descripcion del que vemde el producto
             price (float): precio del que vemde el producto
-            database_name (str): nombre de la base de datos de mongo
+        database_name (str): Nombre de la base de datos del servidor de discord
         """
         
         self.user_id = user_id
@@ -50,7 +50,7 @@ class Product:
 
         Args:
             product_id (int): id del producto en la base de datos
-            database_name (str): nombre de la base de datos de mongo
+        database_name (str): Nombre de la base de datos del servidor de discord
 
         Returns:
             Union[object, bool]: Producto, si existe el procto en la base de datos
@@ -72,7 +72,7 @@ class Product:
         ), True
 
     @classmethod
-    def from_dict(cls, dict):
+    def from_dict(cls, dict: dict) -> object:
         """Regresa un nuevo objeto con la informacion de in diccionario
 
         Args:
@@ -111,14 +111,13 @@ class Product:
         if self.title == '' or None:
             return ProductStatus.not_name
 
-        user_exists = db_utils.exists(
-            '_id', self.user_id, self.database_name, CollectionNames.users.value)
+        user_exists = db_utils.exists('_id', self.user_id, self.database_name, CollectionNames.users.value)
         if not user_exists:
             return ProductStatus.seller_does_not_exist
 
         return ProductStatus.succesful
 
-    def modify_on_db(self, new_price=0.0, new_title='\0', new_description='\0'):
+    def modify_on_db(self, new_price: float = 0.0, new_title: str = '\0', new_description: str = '\0'):
         """Realiza las modificacines pendientes en la base de datos
 
         Args:

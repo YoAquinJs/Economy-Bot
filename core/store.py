@@ -9,22 +9,22 @@ from models.enums import CollectionNames, ProductStatus
 global_settings = get_global_settings()
 
 
-def edit_product(product_id: int, user_id: int, database_name: str, new_price=0.0, new_title='0', new_description='0') -> ProductStatus:
+def edit_product(product_id: int, user_id: int, database_name: str, new_price: float, new_title: str, new_description: str) -> ProductStatus:
     """Edita un producto, si son valores por default ese campo no se edita
 
     Args:
         product_id (int): id del producto
         user_id (int): id del usuario
-        database_name (str): Nombre de la base de datos de mongo
-        new_price (float, optional): nuevo precio. Defaults to 0.0.
-        new_title (str, optional): nuevo titulo. Defaults to '0'.
-        new_description (str, optional): nueva description. Defaults to '0'.
+        database_name (str): Nombre de la base de datos del servidor de discord
+        new_price (float): nuevo precio
+        new_title (str): nuevo titulo
+        new_description (str): nueva description
 
     Returns:
         ProductStatus: status de la modificacion
     """
-    user_exists = db_utils.exists(
-        '_id', user_id, database_name, CollectionNames.users.value)
+    
+    user_exists = db_utils.exists('_id', user_id, database_name, CollectionNames.users.value)
     if not user_exists:
         return ProductStatus.seller_does_not_exist
 
@@ -48,11 +48,12 @@ def get_user_products(user_id: int, database_name: str) -> List[Product]:
 
     Args:
         user_id (id): id del usuario
-        database_name (str): Nombre de la base de datos de mongo
+        database_name (str): Nombre de la base de datos del servidor de discord
 
     Returns:
         List[Product]: Productos del usuario
     """
+    
     products = []
     products_query = db_utils.query('user_id', user_id, database_name, CollectionNames.shop.value, True)
     

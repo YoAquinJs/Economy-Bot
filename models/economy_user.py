@@ -1,7 +1,6 @@
 """Este modulo contiene los objetos modelo EconomyUser y Balance para su uso en otros modulos"""
 
-from typing import List
-from typing import Tuple
+from typing import Union
 
 from database import db_utils
 from utils.utils import get_global_settings
@@ -14,10 +13,10 @@ class EconomyUser():
     """Modelo de usuario en la economia
 
     Attributes:
-        id (str): id del usuario
+        _id (str): id del usuario
         name (str): nombre del usuario
         balance (float): moendas del nuevo usuario registrado en la economia
-        roles (List[str]): roles del usuario.
+        database_name (str): Nombre de la base de datos del servidor de discord
     """
     
     _id: int = 0
@@ -25,14 +24,13 @@ class EconomyUser():
     balance = None
     database_name = ''
     
-    def __init__(self, _id: int, database_name: str = 'none', name: str = '', roles: List[str] = []) -> None:
+    def __init__(self, _id: int, database_name: str = 'none', name: str = '') -> None:
         """Crea un EconomyUser
 
         Args:
             _id (int): id del usuario
             database_name(str, optional): Nombre de la base de datos del servidor de discord. Defaults to 'none'
             name (str, optional): nombre del usuario. Defaults to ''
-            roles (List[str], optional): roles del usuario. Defaults to [].
 
         Raises:
             NotFoundEconomyUser: Cuando el usuario no fue encontrado en la base de datos
@@ -42,17 +40,16 @@ class EconomyUser():
         
         self._id = _id
         self.name = name
-        self.roles = roles
         self.database_name = database_name
 
-    def register(self) -> Tuple[bool, float]:
+    def register(self) -> Union[bool, float]:
         """Registra al usuario a la economia
 
         Raises:
             ValueError: Cuando un usuario se registra su nombre no puede estar vacio
 
         Returns:
-            Tuple[bool, float]: [Falso si el usuario ya estaba registrado, de contrario verdadero, balance inicial del usuario]
+            Union[bool, float]: [Falso si el usuario ya estaba registrado, de contrario verdadero, balance inicial del usuario]
         """
 
         if self.name == '':
@@ -101,7 +98,7 @@ class EconomyUser():
 
         return True
 
-    def get_data_from_dict(self, data):
+    def get_data_from_dict(self, data: dict):
         """Llena las propiedades del objeto a partir de un diccionario
 
         Args:

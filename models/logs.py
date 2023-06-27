@@ -22,7 +22,7 @@ class UnregisterLog:
     final_balance: float = 0.0
     motive: str = ''
 
-    def __init__(self, user_id: int, user_name: str, final_balance: float, motive: str) -> None:
+    def __init__(self, user_id: int, user_name: str, final_balance: float, motive: str):
         """Crea un UnregisterLog
 
         Args:
@@ -98,25 +98,29 @@ class TransactionLog:
 class BugLog:
     """Modelo de un log de un bug
     
-    user_id (int): Id del usuario que envia el bug
-    user_name (str): Nombre del usuario envia el
-    final_balance (float): Balance del usuario que se desregistra
-    motive (str): Motivo del usuario que se desregistra
+    Attributes:
+        user_id (int): Id del usuario que envia el bug
+        title (str): Titulo del bug
+        description (str): Descripcion del bug
+        command (str): Nombre del comando en donde surgio el bug
     """
 
+    user_id: int = 0
     title: str = ''
     description: str = ''
     command: str = ''
     
-    def __init__(self, title: str, description: str, command: str):
+    def __init__(self, user_id: int, title: str, description: str, command: str):
         """Crea un BugLog
 
         Args:
+            user_id (int): Id del usuario que envia el bug
             title (str): titulo del reporte
             description (str): descripcion del bug
             command (str): comando que provoca el bug
         """
         
+        self.user_id = user_id
         self.title = title
         self.description = description
         self.command = command

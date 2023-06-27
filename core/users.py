@@ -12,7 +12,7 @@ def get_users_starting_with(search: str, database_name: str) -> List[EconomyUser
 
     Args:
         search (str): Busqueda a realizar
-        database_name (str): Servidor de discord
+        database_name (str): Nombre de la base de datos del servidor de discord
 
     Returns:
         List[EconomyUser]: Lista de todos los usuarios que tengan contengan la busqueda en su nombre
@@ -38,10 +38,10 @@ def get_random_user(database_name: str) -> EconomyUser:
     """Obtiene un usuario aleatorio en la base de datos de un servidor de discord
 
         Args:
-                database_name (str): Nombre de la base de datos del servidor de discord
+        database_name (str): Nombre de la base de datos del servidor de discord
 
         Returns:
-                EconomyUser: usuario aleatoriamente extraido
+            EconomyUser: usuario aleatoriamente extraido
     """
 
     cursor = query_all(database_name, CollectionNames.users.value).aggregate([

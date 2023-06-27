@@ -4,10 +4,10 @@ from typing import Mapping
 
 from database import db_utils
 from database.db_utils import CollectionNames
-
+from utils.utils import get_global_settings
 
 _forge: Mapping[str, bool] = {}
-
+_global_settings = get_global_settings()
 
 def forge_coins(database_name) -> bool:
     """Inicia el forjado de monedas
@@ -42,13 +42,13 @@ def reset_economy(database_name: str):
     """Pone las cuentas de todos los usuarios en 0.0
 
     Args:
-        database_name (str): Nombre de la base de datos de mongo
+        database_name (str): Nombre de la base de datos del servidor de discord
     """
     
     deregisters = db_utils.query_all(database_name, CollectionNames.deregisters.value)
     for deregister in deregisters.find({}):
-        db_utils.modify("_id", deregister["_id"], "final_balance", 0, database_name, CollectionNames.deregisters.value)
+        db_utils.modify("_id", deregister["_id"], "final_balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.deregisters.value)#to new transfer
     
     users = db_utils.query_all(database_name, CollectionNames.users.value)
     for user in users.find({}):
-        db_utils.modify("_id", user['_id'], "balance", 0.0, database_name, CollectionNames.users.value)
+        db_utils.modify("_id", user['_id'], "balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.users.value)#to new transfer

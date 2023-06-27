@@ -1,23 +1,26 @@
-from typing import Tuple
+"""Este modulo se encarga de gestionar la creacion de un nuevo log de transaccion"""
+
+import bson
+from typing import Union
 
 from utils.utils import get_global_settings, get_time, to_object_id
-from models.economy_user import EconomyUser, Balance
+from models.economy_user import EconomyUser
 from models.logs import *
 from models.enums import TransactionStatus, TransactionType
 
 
-def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float, database_name: str, type: TransactionType) -> Tuple[TransactionStatus, str]:
+def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float, database_name: str, type: TransactionType) -> Union[TransactionStatus, bson.ObjectId]:
     """Hace una transaccion entre usuarios
 
     Args:
-        sender (User): Usuario que envia la transaccion
-        receiver (User): Usuario que recive la transaccion
+        sender (EconomyUser): Usuario que envia la transaccion
+        receptor (EconomyUser): Usuario que recive la transaccion
         quantity (float): Monto de la transaccion
         data_base_name (str): nombre de la base de datos de mongo
         type (TransactionType): Tipo de transaccion
 
     Returns:
-        Tuple[str, str]: [status de la transaccion, id de la transaccion]
+        Union[TransactionStatus, bson.ObjectId]: [Status de la transaccion, Id de la transaccion]
     """
     
     if type == TransactionType.initial_coins:

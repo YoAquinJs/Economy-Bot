@@ -4,7 +4,7 @@ import bson
 import json
 import datetime
 from datetime import datetime
-from typing import Tuple
+from typing import Union
 
 from models.global_settings import GlobalSettings
 
@@ -30,7 +30,7 @@ def get_global_settings() -> GlobalSettings:
 
 
 def get_time() -> str:
-    """Retorna el tiempo y hora actual en UTC
+    """Retorna el tiempo y hora actual
 
     Returns:
         srt: String Del Tiempo Actual
@@ -39,7 +39,7 @@ def get_time() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def key_split(key: str, split_ch:str = "_") -> Tuple[str, str]:
+def key_split(key: str, split_ch:str = "_") -> Union[str, str]:
     """Separa las llaves de los diccionarios tipo nombre_id (implementado para que en los logs y json se puedan identificar
        con usuario o nombre)
 
@@ -48,7 +48,7 @@ def key_split(key: str, split_ch:str = "_") -> Tuple[str, str]:
         split_ch (str, optional): Caracter que separa la llave/valor. Defaults to "_".
 
     Returns:
-        Tuple[str str]: [Llave separada, Valor separado]
+        Union[str str]: [Llave separada, Valor separado]
     """
 
     i = 0
@@ -68,6 +68,7 @@ def to_object_id(id: int) -> bson.ObjectId:
     Returns:
         bson.ObjectId: Id convertido en ObjectId
     """
-    padded_hex_string = hex(id)[2:].zfill(24)
-
-    return bson.ObjectId(padded_hex_string)
+    
+    hex_string = hex(id)[2:].zfill(24)
+    
+    return bson.ObjectId(hex_string)
