@@ -53,27 +53,36 @@ class TransactionLog:
     Attributes:
         date (str): Id del usuario que se desregistra
         type (TransactionType): Tipo de transaccion
-        sender (User): Usuario que envia la transaccion
-        receiver (User): Usuario que recive la transaccion
+        sender_id (int): Usuario que envia la transaccion
+        receiver_id (int): Usuario que recive la transaccion
         quantity (float): Monto de la transaccion
+        reason (str): Razon de la transaccion
+        product_id (int): Id del producto en caso de ser compra por tienda
+        admin_id (int): Id del administrador de caso de ser impresion/expropiacion
     """
 
     date: str = ''
     type: TransactionType = TransactionType.initial_coins
-    sender: dict = {}
-    receiver: dict = {}
+    sender_id: int = 0
+    receiver_id: int = 0
     quantity: float = 0.0
+    reason: str = '' 
+    product_id: int = 0
+    admin_id: int = 0
 
-    def __init__(self, date: str, type: TransactionType, sender: EconomyUser, receiver: EconomyUser, quantity: float):
+    def __init__(self, date: str, type: TransactionType, sender: EconomyUser, receiver: EconomyUser, quantity: float, reason: str = '', product_id: int = 0, admin_id: int = 0):
         """Crea un TransactionLog
 
         Args:
-            date (str): fecha de la transaccion
-            type (str): tipo de transaccion
-            sender (User): usuario que hace la transaccion
-            receiver (User): usuario que recive la transaccion
-            quantity (float): monto de la transaccion
+            date (str): Fecha de la transaccion
+            type (str): Tipo de transaccion
+            sender (EconomyUser): Usuario que hace la transaccion
+            receiver (EconomyUser): Usuario que recive la transaccion
+            quantity (float): Monto de la transaccion
             type (TransactionType): Tipo de transaccion
+            reason (str, optional): Razon de la transaccion. Defaults to ''.
+            product_id (int, optional): Id del producto en caso de ser compra por tienda. Defaults to 0.
+            admin_id (int, optional): Id del administrador de caso de ser impresion/expropiacion. Defaults to 0.
         """
 
         self.date = date
@@ -81,6 +90,9 @@ class TransactionLog:
         self.sender_id = sender._id
         self.receiver_id = receiver._id
         self.quantity = quantity
+        self.reason = reason
+        self.product_id = product_id
+        self.admin_id = admin_id
 
     def send_log_to_db(self, database_name: str) -> pymongo.results.InsertOneResult:
         """Manda el log de la transaccion a la base de datos

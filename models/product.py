@@ -27,7 +27,7 @@ class Product:
     price: float = 0.0
     database_name: str = ''
      
-    def __init__(self, user_id: int, title: str, description: str, price: float, database_name: str):
+    def __init__(self, user_id: int, title: str, description: str, price: float, database_name: str, _id: int = 0):
         """Crea un producto
 
         Args:
@@ -35,7 +35,7 @@ class Product:
             title (str): Titulo del que vemde el producto
             description (str): descripcion del que vemde el producto
             price (float): precio del que vemde el producto
-        database_name (str): Nombre de la base de datos del servidor de discord
+            database_name (str): Nombre de la base de datos del servidor de discord
         """
         
         self.user_id = user_id
@@ -43,6 +43,7 @@ class Product:
         self.description = description
         self.price = round(price, global_settings.max_decimals)
         self.database_name = database_name
+        self._id = _id
 
     @classmethod
     def from_database(cls, product_id: int, database_name: str) -> Union[object, bool]:
@@ -50,7 +51,7 @@ class Product:
 
         Args:
             product_id (int): id del producto en la base de datos
-        database_name (str): Nombre de la base de datos del servidor de discord
+            database_name (str): Nombre de la base de datos del servidor de discord
 
         Returns:
             Union[object, bool]: Producto, si existe el procto en la base de datos

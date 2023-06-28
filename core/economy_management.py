@@ -6,6 +6,8 @@ from database import db_utils
 from database.db_utils import CollectionNames
 from utils.utils import get_global_settings
 
+global frozen
+frozen = False
 _forge: Mapping[str, bool] = {}
 _global_settings = get_global_settings()
 
@@ -45,6 +47,7 @@ def reset_economy(database_name: str):
         database_name (str): Nombre de la base de datos del servidor de discord
     """
     
+    frozen = True
     deregisters = db_utils.query_all(database_name, CollectionNames.deregisters.value)
     for deregister in deregisters.find({}):
         db_utils.modify("_id", deregister["_id"], "final_balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.deregisters.value)#to new transfer
@@ -52,3 +55,5 @@ def reset_economy(database_name: str):
     users = db_utils.query_all(database_name, CollectionNames.users.value)
     for user in users.find({}):
         db_utils.modify("_id", user['_id'], "balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.users.value)#to new transfer
+        
+    frozen = False

@@ -56,24 +56,23 @@ class EconomyUser():
             raise ValueError('Nombre vacio')
 
         if db_utils.query("_id", self.id, self.database_name, CollectionNames.users.value) != None:
-            return False
+            return False, 0
 
         de_register = db_utils.query("user_id", self.id, self.database_name, CollectionNames.deregisters.value)
         
         if de_register is not None:
-            balance = de_register["final_balance"]
+            initial_balance = de_register["final_balance"]
             db_utils.delete("_id", de_register["_id"], self.database_name, CollectionNames.deregisters.value)
         else:
-            balance = _global_settings.initial_number_of_coins
+            initial_balance = _global_settings.initial_number_of_coins
             
         db_utils.insert({
             '_id': self._id,
             'name': self.name,
             'balance': 0
         }, self.database_name, CollectionNames.users.value)
-        self.balance = Balance(balance, self)
 
-        return True, balance
+        return True, initial_balance
 
     def unregister(self):
         """Elimina al usuario de la base de datos

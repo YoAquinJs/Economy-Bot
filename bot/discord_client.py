@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 from utils.utils import get_global_settings
 
+from models.enums import CommandNames
 client = None
 
 
@@ -17,7 +18,7 @@ def init_client():
     intents = discord.Intents.all()
 
     client = commands.Bot(command_prefix=global_settings.prefix, help_command=None,
-                          activity=discord.Game(f"Economy Bot | {global_settings.prefix}ayuda"),
+                          activity=discord.Game(f"Economy Bot | {global_settings.prefix}{CommandNames.ayuda.value}"),
                           status=discord.Status.online, intents=intents)
 
 

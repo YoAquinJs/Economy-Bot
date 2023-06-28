@@ -59,7 +59,7 @@ def key_split(key: str, split_ch:str = "_") -> Union[str, str]:
 
     return key[0:i], key[i+1:len(key)]
 
-def to_object_id(id: int) -> bson.ObjectId:
+def id_to_objectid(id: int) -> bson.ObjectId:
     """Convierte un Id Int64 en ObjectId
 
     Args:
@@ -72,3 +72,16 @@ def to_object_id(id: int) -> bson.ObjectId:
     hex_string = hex(id)[2:].zfill(24)
     
     return bson.ObjectId(hex_string)
+
+def objectid_to_id(id: bson.ObjectId) -> int:
+    """Convierte ObjectId en Int64
+
+    Args:
+        id (bson.ObjectId): Id a convertir
+
+    Returns:
+        int: Id convertido en Int64
+    """
+    
+    hex_string = str(id)
+    return int(hex_string, 16)
