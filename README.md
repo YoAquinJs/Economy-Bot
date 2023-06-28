@@ -28,27 +28,15 @@ La aplicacion utiliza un archivo de configuracion con el nombre de ```settings.j
 
 ```json
 {
-  //Configuraciones del Bot
+  "token" : "TokenTokenTokenTok.enToken.TokenTokenTokenTokenTo-kenToken | Token del bot de discord (string)",
+  "mongoUser": "mongouser | Usuario de la base de datos (string)",
+  "mongoPassword": "mongopassword | Contraseña de la base de datos (string)",
+  "max_decimals": "2 | Numero de decimales usados para los calculos monetarios (int)",
 
-  //Token del bot de discord (string)
-  "token" : "TokenTokenTokenTokenTok.enToken.TokenTokenTokenTokenTokenTo-kenToken",
-  //Usuario de la base de datos (string)
-  "mongoUser": "mongouser",
-  //Contraseña de la base de datos (string)
-  "mongoPassword": "mongopassword",
-  //Numero de decimales usados para los calculos monetarios (int)
-  "max_decimals": 2,
-  
-  //Configuraciones de servidor por defecto
-
-  //Prefijo de los comandos del Bot (char)
-  "prefix" : "$",
-  //Nombre de la economia del servidor (string)
-  "economy_name": "Discord-conomy",
-  //Nombre de la moneda del servidor (string)
-  "coin_name": "discoin",
-  //Numero de monedas otorgadas al registrarse un usuario (float)
-  "initial_number_of_coins": 1.0
+  "prefix" : "$ | Prefijo de los comandos del Bot (char)",
+  "economy_name": "Discord-conomy | Nombre de la economia del servidor (string)",
+  "coin_name": "discoin | Nombre de la moneda del servidor (string)",
+  "initial_number_of_coins": "1.0 | Numero de monedas otorgadas al registrarse un usuario (float)"
 }
 ``` 
 
