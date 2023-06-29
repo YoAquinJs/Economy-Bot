@@ -9,12 +9,14 @@ from bot.discord_client import get_client
 
 from core.logger import report_bug_log
 from core.transactions import new_transaction
-from utils.utils import get_global_settings, objectid_to_id, id_to_objectid
+from core.store import reaction_to_product
+
 from models.economy_user import EconomyUser
 from models.enums import TransactionStatus, TransactionType, CollectionNames
 from models.product import Product
 
 from database import db_utils
+from utils.utils import get_global_settings, objectid_to_id, id_to_objectid
 
 client = get_client()
 global_settings = get_global_settings()
@@ -73,6 +75,9 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     """
 
     guild = client.get_guild(payload.guild_id)
+    if guild is None:
+        return
+    
     database_name = get_database_name(guild)
 
     #Vericar que el usuario no sea un bot, y que el mensaje este registrado como producto
@@ -80,39 +85,10 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.member.bot or not product_exists:
         return
 
-    channel = discord.utils.get(client.get_guild(payload.guild_id).channels, id=payload.channel_id)
+    channel = discord.utils.get(guild.channels, id=payload.channel_id)
     msg = await channel.fetch_message(payload.message_id)
     await msg.remove_reaction(payload.emoji, payload.member)
 
-    seller_user = await client.fetch_user(objectid_to_id(product.user_id))
-
-    if payload.member.id == seller_user.id:
-        if str(payload.emoji) == "❌":
-            await msg.delete()
-            db_utils.delete("_id", product._id, database_name, CollectionNames.shop.value)
-            await seller_user.send(f"has eliminado tu producto {product.title}")
-    else:
-        if str(payload.emoji) == "❌":
-            if channel.permissions_for(payload.member).administrator: #Admin removal TODO to role checking
-                await msg.delete()
-                db_utils.delete("_id", product._id, database_name, CollectionNames.shop.value)
-
-                await payload.member.send(f"Has eliminado el producto {product.title}, del usuario {seller_user.name}, id"
-                                          f" {seller_user.id}. Como administrador de {global_settings.economy_name}")
-                await seller_user.send(f"Tu producto {product.title} ha sido eliminado por el administrator "
-                                       f"{payload.member.name}, id {payload.member.id}")
-        elif str(payload.emoji) == "🪙": #Buyer
-            buyer_euser = EconomyUser(id_to_objectid(payload.member.id), database_name)
-            seller_euser = EconomyUser(id_to_objectid(seller_user.id), database_name)
-
-            status, transaction_id = new_transaction(buyer_euser, seller_euser, product.price, database_name, TransactionType.shop_buy, product=product)
-            
-            if status == TransactionStatus.sender_not_exists:
-                await payload.member.send(f"Para realizar la compra del producto, registrate con {global_settings.prefix}registro en algun canal del servidor.")
-            elif status == TransactionStatus.insufficient_coins:
-                await payload.member.send(f"No tienes suficientes {global_settings.coin_name} para realizar la compra del producto {product.title}.")
-            elif status == TransactionStatus.succesful:
-                await payload.member.send(f"Has adquirido el producto: {product.title}, del usuario: {seller_user.name}; ID: {seller_user.id}\n"
-                                          f"Id transaccion: {transaction_id}. Tu saldo actual es de {buyer_euser.balance.value} {global_settings.coin_name}.")
-                await seller_user.send(f"El usuario: {buyer_euser.name}; ID: {payload.member.id} ha adquirido tu producto: {product.title}, debes cumplir con la entrega\n"
-                                       f"ID transaccion: {transaction_id}. Tu saldo actual es de {seller_euser.balance.value} {global_settings.coin_name}.")
+    remove_msg = await reaction_to_product(product, str(payload.emoji), payload.member, channel, database_name)
+    if remove_msg:
+        await msg.delete()
