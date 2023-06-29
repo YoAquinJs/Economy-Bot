@@ -8,6 +8,7 @@ from discord.ext.commands import Context
 from database import db_utils
 from bot.discord_client import get_client
 from bot.bot_utils import *
+from bot.decorators import *
 
 import core.economy_management
 import core.logger
@@ -36,6 +37,8 @@ async def ping_chek(ctx: Context):
 
 
 @client.command(name=CommandNames.bug.value)
+@guild_required()
+@register_required()
 async def report_bug(ctx: Context, command: str, *, info: str):
     """Reporta un bug a los desarrolladores
 
@@ -60,6 +63,7 @@ async def report_bug(ctx: Context, command: str, *, info: str):
 
 
 @client.command(name=CommandNames.registro.value)
+@guild_required()
 async def register(ctx: Context):
     """Comando para que un usuario se registre, en este se añade un nuevo archivo a la base de datos de balances de
         usuarios y su cantidad de monedas correspondientes que inicia en 0
@@ -82,6 +86,8 @@ async def register(ctx: Context):
 
 
 @client.command(name=CommandNames.desregistro.value)
+@guild_required()
+@register_required()
 async def de_register(ctx: Context, *, motive: str = "nulo"):
     """Comando para que un usuario se desregistre, creando un UnregisterLog
 
@@ -107,6 +113,8 @@ async def de_register(ctx: Context, *, motive: str = "nulo"):
 
 
 @client.command(name=CommandNames.balance.value)
+@guild_required()
+@register_required()
 async def get_coins(ctx: Context):
     """Comando para solicitar un mensaje con la cantidad de monedas que el usuario tiene.
 
@@ -126,6 +134,7 @@ async def get_coins(ctx: Context):
 
 
 @client.command(name=CommandNames.usuario.value)
+@guild_required()
 async def get_user_by_name(ctx: Context, _user: discord.Member | str):
     """Comando para buscar todos los usuarios que empiecen por _user
 
@@ -158,6 +167,8 @@ async def get_user_by_name(ctx: Context, _user: discord.Member | str):
 
 
 @client.command(name=CommandNames.transferir.value)
+@guild_required()
+@register_required()
 async def transference(ctx: Context, quantity: float, receptor: discord.Member, *, reason: str = 'Nada'):
     """Comando para transferir monedas de la wallet del usuario a otro usuario
 
@@ -197,6 +208,8 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member, 
 
 
 @client.command(name=CommandNames.validar.value)
+@guild_required()
+@register_required()
 async def validate_transaction(ctx: Context, _id: bson.ObjectId):
     """Comando para validar una transaccion a travez de su id.
 
@@ -253,6 +266,8 @@ async def validate_transaction(ctx: Context, _id: bson.ObjectId):
 
 
 @client.command(name=CommandNames.producto.value)
+@guild_required()
+@register_required()
 async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
     """Comando para crear una interfaz de venta a un producto o servicio
 
@@ -298,6 +313,8 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
 
 
 @client.command(name=CommandNames.productos.value)
+@guild_required()
+@register_required()
 async def get_products_in_shop(ctx: Context):
     """Comando para buscar todos los productos del usuario
 
@@ -328,6 +345,8 @@ async def get_products_in_shop(ctx: Context):
 
 
 @client.command(name=CommandNames.delproducto.value)
+@guild_required()
+@register_required()
 async def del_product_in_shop(ctx: Context, _id: int):
     """Comando para eliminar una interfaz de venta a un producto o servicio
 
@@ -465,6 +484,8 @@ async def help_cmd(ctx: Context):
 
 @client.command(name=CommandNames.imprimir.value)
 @commands.has_permissions(administrator=True)
+@guild_required()
+@register_required()
 async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
@@ -497,6 +518,8 @@ async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
 
 @client.command(name=CommandNames.expropiar.value)
 @commands.has_permissions(administrator=True)
+@guild_required()
+@register_required()
 async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
 
@@ -527,9 +550,10 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
                             f"ID de transacción: {transaction_id}")
 
 
-
 @client.command(name=CommandNames.initforge.value)
 @commands.has_permissions(administrator=True)
+@guild_required()
+@register_required()
 async def init_forge(ctx: Context):
     """Con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario
         random y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos
@@ -577,6 +601,8 @@ async def init_forge(ctx: Context):
 
 @client.command(name=CommandNames.stopforge.value)
 @commands.has_permissions(administrator=True)
+@guild_required()
+@register_required()
 async def stop_forge(ctx: Context):
     """Detiene el forjado de monedas en el servidor
 
@@ -592,6 +618,8 @@ async def stop_forge(ctx: Context):
 
 @client.command(name=CommandNames.reset.value)
 @commands.has_permissions(administrator=True)
+@guild_required()
+@register_required()
 async def reset_economy(ctx: Context):
     """Reinicia los balances de todos los usuarios a la configuracion de initial_coins, Requiere permisos de administrador
 
@@ -605,7 +633,6 @@ async def reset_economy(ctx: Context):
 
 
 @client.command(name=CommandNames.adminayuda.value)
-@commands.has_permissions(administrator=True)
 async def admin_help_cmd(ctx: Context):
     """Retorna la lista de comandos disponibles para los admins, Manda un mensaje con la información de los comandos del
        bot
