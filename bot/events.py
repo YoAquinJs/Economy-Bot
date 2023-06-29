@@ -40,7 +40,7 @@ async def on_command_error(ctx, error):
         error (discord.ext.commands.CommandError): TError lanzado en el comando
     """
     
-    if isinstance(error, commands.CommandNotFound):
+    if isinstance(error, commands.CommandNotFound) or isinstance(error, commands.CheckFailure):
         return
 
     msg = "ha ocurrido un error"
@@ -57,7 +57,8 @@ async def on_command_error(ctx, error):
     else:
         error = f"exception in {ctx.command.name}: {error}"
         print(error)
-        report_bug_log(ctx.author.id, "Command Error", error, ctx.command.name, get_database_name(ctx.guild))
+        if ctx.guild != None:
+            report_bug_log(ctx.author.id, "Command Error", error, ctx.command.name, get_database_name(ctx.guild))
         msg = f"{msg}, ya ah sido reportado a los desarrolladores"
 
     await send_message(ctx, msg, auto_time=True)

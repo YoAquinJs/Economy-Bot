@@ -3,7 +3,7 @@
 import bson
 from typing import Type
 from discord.ext import commands
-from discord.ext.commands import Context
+from discord.ext.commands import Context, BadArgument
 
 from database import db_utils
 from bot.discord_client import get_client
@@ -230,37 +230,40 @@ async def validate_transaction(ctx: Context, _id: bson.ObjectId):
         msg_embed = discord.Embed(title=f"${transaction['quantity']} ", description="", colour=discord.colour.Color.gold())
         msg_embed.set_footer(text=f"Timestamp: {transaction['date']}")
         
+        sender_id =objectid_to_id(transaction["sender_id"])
+        receiver_id = objectid_to_id(transaction["receiver_id"])
         if transaction["type"] == TransactionType.initial_coins.value:
             msg_embed.title += "de Balance inicial"
-            receiver_user = await client.fetch_user(objectid_to_id(transaction["receiver_id"]))
+            receiver_user = await client.fetch_user(receiver_id)
             
-            msg_embed.description = f"Emisor: Sistema\nReceptor: {receiver_user.name}, ID: {receiver_user.id}"   
+            msg_embed.description = f"Emisor: Sistema\nReceptor: {receiver_user.name if receiver_user != None else '*no encontrado*'}, ID: {receiver_id}"   
         elif transaction["type"] == TransactionType.user_to_user.value:
             msg_embed.title += f"a razon de {transaction['reason']}"
-            sender_user = await client.fetch_user(objectid_to_id(transaction["sender_id"]))
-            receiver_user = await client.fetch_user(objectid_to_id(transaction["receiver_id"]))
+            sender_user = await client.fetch_user(sender_id)
+            receiver_user = await client.fetch_user(receiver_id)
             
-            msg_embed.description = f"Emisor: {sender_user.name}, ID: {sender_user.id}\nReceptor: {receiver_user.name}, ID: {receiver_user.id}"
+            msg_embed.description = f"Emisor: {sender_user.name if sender_user != None else '*no encontrado*'}, ID: {sender_id}\n"\
+                                    f"Receptor: {receiver_user.name if receiver_user != None else '*no encontrado*'}, ID: {receiver_id}"
         elif transaction["type"] == TransactionType.shop_buy.value:
             msg_embed.title += f"{transaction['reason']}, ID del producto: {objectid_to_id(transaction['product_id'])}"
-            sender_user = await client.fetch_user(objectid_to_id(transaction["sender_id"]))
-            receiver_user = await client.fetch_user(objectid_to_id(transaction["receiver_id"]))
+            sender_user = await client.fetch_user(sender_id)
+            receiver_user = await client.fetch_user(receiver_id)
 
-            msg_embed.description = f"Emisor: {sender_user.name}, ID: {sender_user.id}\nReceptor: {receiver_user.name}, ID: {receiver_user.id}"
+            msg_embed.description = f"Emisor: {sender_user.name if sender_user != None else '*no encontrado*'}, ID: {sender_id}\nReceptor: {receiver_user.name}, ID: {receiver_id}"
         elif transaction["type"] == TransactionType.admin_to_user.value:
             msg_embed.title += f"por {transaction['reason']}"
             
             if transaction["sender_id"] == system_user._id:
-                receiver_user = await client.fetch_user(objectid_to_id(transaction["receiver_id"]))
-                msg_embed.description = f"Emisor: Sistema\nReceptor: {receiver_user.name}, ID: {receiver_user.id}"
+                receiver_user = await client.fetch_user(receiver_id)
+                msg_embed.description = f"Emisor: Sistema\nReceptor: {receiver_user.name if receiver_user != None else '*no encontrado*'}, ID: {receiver_id}"
             else:
-                sender_user = await client.fetch_user(objectid_to_id(transaction["sender_id"]))
-                msg_embed.description = f"Emisor: {sender_user.name}, ID: {sender_user.id}\nReceptor: Sistema"
+                sender_user = await client.fetch_user(sender_id)
+                msg_embed.description = f"Emisor: {sender_user.name if sender_user != None else '*no encontrado*'}, ID: {sender_id}\nReceptor: Sistema"
         elif transaction["type"] == TransactionType.forged.value:
             msg_embed.title += "Forjados"
-            receiver_user = await client.fetch_user(objectid_to_id(transaction["receiver_id"]))
+            receiver_user = await client.fetch_user(receiver_id)
 
-            msg_embed.description = f"Emisor: Sistema\nReceptor: {receiver_user.name}, ID: {receiver_user.id}"   
+            msg_embed.description = f"Emisor: Sistema\nReceptor: {receiver_user.name if receiver_user != None else '*no encontrado*'}, ID: {receiver_id}"   
         
         await ctx.author.send(embed=msg_embed)
 
