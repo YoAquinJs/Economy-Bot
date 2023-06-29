@@ -1,5 +1,6 @@
 """Este modulo contiene los callback de eventos de discord"""
 
+import bson
 import discord
 from discord.ext import commands
 
@@ -8,7 +9,7 @@ from bot.discord_client import get_client
 
 from core.logger import report_bug_log
 from core.transactions import new_transaction
-from utils.utils import get_global_settings
+from utils.utils import get_global_settings, objectid_to_id, id_to_objectid
 from models.economy_user import EconomyUser
 from models.enums import TransactionStatus, TransactionType, CollectionNames
 from models.product import Product
@@ -74,7 +75,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     database_name = get_database_name(guild)
 
     #Vericar que el usuario no sea un bot, y que el mensaje este registrado como producto
-    product, product_exists = Product.from_database(payload.message_id, database_name)
+    product, product_exists = Product.from_database(id_to_objectid(payload.message_id), database_name)
     if payload.member.bot or not product_exists:
         return
 
@@ -82,27 +83,26 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     msg = await channel.fetch_message(payload.message_id)
     await msg.remove_reaction(payload.emoji, payload.member)
 
-    seller_user = await client.fetch_user(product.user_id)
+    seller_user = await client.fetch_user(objectid_to_id(product.user_id))
 
-    if payload.member.id == product.user_id:
+    if payload.member.id == seller_user.id:
         if str(payload.emoji) == "❌":
             await msg.delete()
-            db_utils.delete("_id", payload.message_id, database_name, CollectionNames.shop.value)
+            db_utils.delete("_id", product._id, database_name, CollectionNames.shop.value)
             await seller_user.send(f"has eliminado tu producto {product.title}")
-
     else:
         if str(payload.emoji) == "❌":
             if channel.permissions_for(payload.member).administrator: #Admin removal TODO to role checking
                 await msg.delete()
-                db_utils.delete("_id", payload.message_id, database_name, CollectionNames.shop.value)
+                db_utils.delete("_id", product._id, database_name, CollectionNames.shop.value)
 
                 await payload.member.send(f"Has eliminado el producto {product.title}, del usuario {seller_user.name}, id"
                                           f" {seller_user.id}. Como administrador de {global_settings.economy_name}")
                 await seller_user.send(f"Tu producto {product.title} ha sido eliminado por el administrator "
                                        f"{payload.member.name}, id {payload.member.id}")
         elif str(payload.emoji) == "🪙": #Buyer
-            buyer_euser = EconomyUser(payload.member.id, database_name)
-            seller_euser = EconomyUser(seller_user.id, database_name)
+            buyer_euser = EconomyUser(id_to_objectid(payload.member.id), database_name)
+            seller_euser = EconomyUser(id_to_objectid(seller_user.id), database_name)
 
             status, transaction_id = new_transaction(buyer_euser, seller_euser, product.price, database_name, TransactionType.shop_buy, product=product)
             
@@ -111,7 +111,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             elif status == TransactionStatus.insufficient_coins:
                 await payload.member.send(f"No tienes suficientes {global_settings.coin_name} para realizar la compra del producto {product.title}.")
             elif status == TransactionStatus.succesful:
-                await payload.member.send(f"Has adquirido el producto: {product.title}, del usuario: {seller_user.name}; Id: {seller_user.id}\n"
+                await payload.member.send(f"Has adquirido el producto: {product.title}, del usuario: {seller_user.name}; ID: {seller_user.id}\n"
                                           f"Id transaccion: {transaction_id}. Tu saldo actual es de {buyer_euser.balance.value} {global_settings.coin_name}.")
-                await seller_user.send(f"El usuario: {payload.member.name}; id: {payload.member.id} ha adquirido tu producto: {product.title}, debes cumplir con la entrega\n"
-                                       f"id transaccion: {transaction_id}. Tu saldo actual es de {seller_euser.balance.value} {global_settings.coin_name}.")
+                await seller_user.send(f"El usuario: {buyer_euser.name}; ID: {payload.member.id} ha adquirido tu producto: {product.title}, debes cumplir con la entrega\n"
+                                       f"ID transaccion: {transaction_id}. Tu saldo actual es de {seller_euser.balance.value} {global_settings.coin_name}.")

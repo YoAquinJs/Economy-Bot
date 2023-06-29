@@ -1,9 +1,10 @@
 """Este modulo contiene los objetos modelo EconomyUser y Balance para su uso en otros modulos"""
 
+import bson
 from typing import Union
 
 from database import db_utils
-from utils.utils import get_global_settings
+from utils.utils import get_global_settings, id_to_objectid
 from models.enums import CollectionNames
 
 _global_settings = get_global_settings()
@@ -13,22 +14,22 @@ class EconomyUser():
     """Modelo de usuario en la economia
 
     Attributes:
-        _id (str): id del usuario
+        _id (bson.ObjectId): id del usuario
         name (str): nombre del usuario
         balance (float): moendas del nuevo usuario registrado en la economia
         database_name (str): Nombre de la base de datos del servidor de discord
     """
     
-    _id: int = 0
+    _id: bson.ObjectId = None
     name: str = ''
     balance = None
     database_name = ''
     
-    def __init__(self, _id: int, database_name: str = 'none', name: str = '') -> None:
+    def __init__(self, _id: bson.ObjectId, database_name: str = 'none', name: str = '') -> None:
         """Crea un EconomyUser
 
         Args:
-            _id (int): id del usuario
+            _id (bson.ObjectId): id del usuario
             database_name(str, optional): Nombre de la base de datos del servidor de discord. Defaults to 'none'
             name (str, optional): nombre del usuario. Defaults to ''
 
@@ -55,10 +56,10 @@ class EconomyUser():
         if self.name == '':
             raise ValueError('Nombre vacio')
 
-        if db_utils.query("_id", self.id, self.database_name, CollectionNames.users.value) != None:
+        if db_utils.query("_id", self._id, self.database_name, CollectionNames.users.value) != None:
             return False, 0
 
-        de_register = db_utils.query("user_id", self.id, self.database_name, CollectionNames.deregisters.value)
+        de_register = db_utils.query("user_id", self._id, self.database_name, CollectionNames.deregisters.value)
         
         if de_register is not None:
             initial_balance = de_register["final_balance"]
@@ -87,7 +88,7 @@ class EconomyUser():
             bool: Dice si el usuario existe
         """
 
-        db_result = db_utils.query('_id', self.id, self.database_name, CollectionNames.users.value)
+        db_result = db_utils.query('_id', self._id, self.database_name, CollectionNames.users.value)
 
         if db_result == None:
             return False
@@ -110,8 +111,19 @@ class EconomyUser():
         self.balance = Balance(data['balance'], self)
 
     @property
-    def id(self) -> int:
+    def id(self) -> bson.ObjectId:
         return self._id
+    
+
+    @classmethod
+    def get_system_user(cls) -> object:
+        """Retorna el usuario del sistema
+
+        Returns:
+            EconomyUser: Usuario para operaciones del sistema
+        """
+        
+        return cls(id_to_objectid(0))
 
 
 class Balance:
@@ -129,8 +141,8 @@ class Balance:
         """Crea un Balance
 
         Args:
-            balance (float): id del usuario
-            user (EconomyUser): usuario que contiene el 
+            balance (float): Cantidad de monedas del usuario
+            user (EconomyUser): Usuario que contiene el 
         """
 
         self.balance = balance

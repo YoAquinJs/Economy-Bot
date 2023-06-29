@@ -15,15 +15,15 @@ def send_unregistered_log(user: EconomyUser, motive: str):
         motive (str): Motivo del desregistro
     """
 
-    desregister_log = UnregisterLog(user.id, user.name, user.balance.value, motive)
+    desregister_log = UnregisterLog(user._id, user.name, user.balance.value, motive)
     desregister_log.send_log_to_db(user.database_name)
 
 
-def report_bug_log(user_id: int, title: str, description: str, command: str, database_name: str) -> Union[bool, bson.ObjectId]:
+def report_bug_log(user_id: bson.ObjectId, title: str, description: str, command: str, database_name: str) -> Union[bool, bson.ObjectId]:
     """Genera un log que reporta un bug a los desarrolladores
 
     Args:
-        user_id (int): id del usuario que reporta el bug
+        user_id (bson.ObjectId): id del usuario que reporta el bug
         title (str): titulo del bug
         description (str): descripcion del bug
         command (str): comando que ocasiona el bug

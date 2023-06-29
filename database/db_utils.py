@@ -53,7 +53,7 @@ def replace(key: str, value, new_file: dict, database_name: str, collection: str
         Returns:
             pymongo.results.UpdateResult: Contiene la información de la modificacion en MongoDB
     """
-
+        
     return _mongo_client[database_name][collection].replace_one({key: value}, new_file)
 
 
@@ -123,7 +123,6 @@ def exists(key: str, value, database_name: str, collection: str) -> bool:
     """
     
     doc = _mongo_client[database_name][collection].find_one({key: value}, {key: 1})
-
     return doc != None
 
 

@@ -1,35 +1,35 @@
 """Este modulo contiene funcionalidades generales de la gestion de la economia de cada servidor de discord"""
 
-from typing import Mapping
+import bson
+from typing import Mapping, List
 
 from database import db_utils
 from database.db_utils import CollectionNames
 from utils.utils import get_global_settings
 
-global frozen
-frozen = False
+_frozen = False
 _forge: Mapping[str, bool] = {}
+_users: Mapping[str, List[bson.ObjectId]] = {}
+
 _global_settings = get_global_settings()
 
-def forge_coins(database_name) -> bool:
+
+def forge_coins_status(database_name: str, status: bool):
     """Inicia el forjado de monedas
 
     Args:
         database_name (str): Nombre de la base de datos del servidor de discord
-
+        status (bool): Estado del forjado, verdadero para iniciar, falso para detener
     Returns:
         bool: Estado del forjado del servidor
     """
     
     global _forge
 
-    if not database_name in _forge:
-        _forge[database_name] = True
-
-    return _forge[database_name]
+    _forge[database_name] = status
 
 
-def stop_forge_coins(database_name: str):
+def is_forging(database_name: str) -> bool:
     """Detiene el forjado de monedas
 
     Args:
@@ -37,7 +37,7 @@ def stop_forge_coins(database_name: str):
     """
     
     global _forge
-    _forge[database_name] = False
+    return _forge[database_name] if database_name in _forge.keys() else False
 
 
 def reset_economy(database_name: str):
@@ -47,7 +47,8 @@ def reset_economy(database_name: str):
         database_name (str): Nombre de la base de datos del servidor de discord
     """
     
-    frozen = True
+    global _frozen
+    _frozen = True
     deregisters = db_utils.query_all(database_name, CollectionNames.deregisters.value)
     for deregister in deregisters.find({}):
         db_utils.modify("_id", deregister["_id"], "final_balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.deregisters.value)#to new transfer
@@ -56,4 +57,33 @@ def reset_economy(database_name: str):
     for user in users.find({}):
         db_utils.modify("_id", user['_id'], "balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.users.value)#to new transfer
         
-    frozen = False
+    _frozen = False
+
+
+def update_user_status(_id: bson.ObjectId, database_name: str):
+    """Inserta o remueve un usuario al registrarse o desregistrarse
+
+    Args:
+        _id (bson.ObjectId): Id del usuario
+        database_name (str): Nombre de la base de datos del servidor de discord
+    """
+    
+    global _users
+    
+    if database_name not in _users.keys():
+        _users[database_name] = []
+    
+    _users[database_name].remove(_id) if _id in _users[database_name] else _users[database_name].append(_id)
+    
+    
+def get_users(database_name: str) -> List[int]:
+    """Obtiene la lista de usuarios actual
+
+    Args:
+        database_name (str): Nombre de la base de datos del servidor de discord
+
+    Returns:
+        List[int]: Lista de los ids de los usuarios al momento
+    """
+    
+    return _users[database_name]

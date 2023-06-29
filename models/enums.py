@@ -8,11 +8,10 @@ class CollectionNames(Enum):
 
     bugs = "bugs"
     shop = "shop"
-    forge = "forge"
     users = "users"
     deregisters = "deregisters"
     transactions = "transactions"
-
+    
 class TransactionStatus(Enum):
     """Enum del estado de la transaccion despues de procesarse"""
 

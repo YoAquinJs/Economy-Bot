@@ -1,11 +1,13 @@
 """Este modulo se encarga de funcionalidades de comandos en torno a usuarios"""
 
+import bson
 from typing import List
+from random import choice
 
 from models.economy_user import EconomyUser
 from models.enums import CollectionNames
 from database.db_utils import query_all
-
+from utils.utils import id_to_objectid
 
 def get_users_starting_with(search: str, database_name: str) -> List[EconomyUser]:
     """Busqueda de todos los usuarios registrados 
@@ -26,7 +28,7 @@ def get_users_starting_with(search: str, database_name: str) -> List[EconomyUser
     })
 
     for result in results:
-        user = EconomyUser(-1, database_name=database_name)
+        user = EconomyUser(None, database_name=database_name)
         user.get_data_from_dict(result)
 
         users.append(user)
@@ -34,25 +36,20 @@ def get_users_starting_with(search: str, database_name: str) -> List[EconomyUser
     return users
 
 
-def get_random_user(database_name: str) -> EconomyUser:
-    """Obtiene un usuario aleatorio en la base de datos de un servidor de discord
+def get_random_user(_users: List[bson.ObjectId], database_name: str) -> EconomyUser:
+    """Obtiene un usuario aleatorio de una lista de usuarios
 
         Args:
+        _users (List[bson.ObjectId]): Lista de ids para escoger
         database_name (str): Nombre de la base de datos del servidor de discord
-
         Returns:
             EconomyUser: usuario aleatoriamente extraido
     """
+    
+    if len(_users) == 0:
+        return EconomyUser.get_system_user()
 
-    cursor = query_all(database_name, CollectionNames.users.value).aggregate([
-        {"$match": {"start_time": {"$exists": False}}},
-        {"$sample": {"size": 1}}
-    ])
+    rnd_user = EconomyUser(choice(_users), database_name)
+    exists = rnd_user.get_data_from_db()
 
-    rnd_data = None
-    for i in cursor:
-        rnd_data = i
-
-    random_user = EconomyUser(rnd_data['_id'], database_name)
-    random_user.get_data_from_dict(rnd_data)
-    return random_user
+    return rnd_user if exists is True else EconomyUser.get_system_user()

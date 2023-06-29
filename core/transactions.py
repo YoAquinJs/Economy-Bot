@@ -30,33 +30,39 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
         Union[TransactionStatus, bson.ObjectId]: _description_
     """
     
+    system_user = EconomyUser.get_system_user()
+    
     quantity = round(quantity, _global_settings.max_decimals)
     if quantity+((1/(10**(_global_settings.max_decimals+1)))*int(type == TransactionType.initial_coins)) <= 0.0:
         return TransactionStatus.negative_quantity, ''
             
     if type == TransactionType.initial_coins or type == TransactionType.forged:
-        sender = EconomyUser(id_to_objectid(0))
+        sender = system_user
     if type == TransactionType.shop_buy:
         reason = f"Compra de {product.title}"
     if type == TransactionType.admin_to_user:
+        admin_exists = admin.get_data_from_db()
+        if admin_exists is False:
+            return TransactionStatus.sender_not_exists
+        
         if sender is None:
-            sender = EconomyUser(id_to_objectid(0))
+            sender = system_user
             reason = "Impresion"
         if receptor is None:
-            receptor = EconomyUser(id_to_objectid(0))
+            receptor = system_user
             reason = "Expropiacion"
             
     if sender._id == receptor._id:
         return TransactionStatus.sender_is_receptor, ''
 
-    if receptor._id != id_to_objectid(0): #Not system
+    if receptor._id != system_user._id: #Not system
         receptor_exists = receptor.get_data_from_db()
         if not receptor_exists:
-            return TransactionStatus.receptor_not_exists_not_exists, ''
+            return TransactionStatus.receptor_not_exists, ''
     
         receptor.balance += quantity
         
-    if sender._id != id_to_objectid(0): #Not system
+    if sender._id != system_user._id: #Not system
         sender_exists = sender.get_data_from_db()
         if not sender_exists:
             return TransactionStatus.sender_not_exists, ''
@@ -66,8 +72,8 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
         sender.balance -= quantity
     
     # Se hace el log de la transaccion
-    transaction_log = TransactionLog(get_time(), type, sender, receptor, quantity, reason,
-                                     product._id if product is not None else 0, admin._id if admin is not None else 0)
+    transaction_log = TransactionLog(get_time(), type, sender._id, receptor._id, quantity, reason, 
+                                     product._id if product is not None else None, admin._id if admin is not None else None)
     transaccion_id = transaction_log.send_log_to_db(database_name).inserted_id
 
     return TransactionStatus.succesful, transaccion_id
