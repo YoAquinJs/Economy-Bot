@@ -11,6 +11,7 @@ class CollectionNames(Enum):
     users = "users"
     deregisters = "deregisters"
     transactions = "transactions"
+    settings = "settings"
     
 class TransactionStatus(Enum):
     """Enum del estado de la transaccion despues de procesarse"""

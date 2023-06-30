@@ -4,10 +4,9 @@ import bson
 from typing import Union
 
 from database import db_utils
-from utils.utils import get_global_settings, id_to_objectid
+from utils.utils import id_to_objectid
+from models.guild_settings import GuildSettings
 from models.enums import CollectionNames
-
-_global_settings = get_global_settings()
 
 
 class EconomyUser():
@@ -65,7 +64,7 @@ class EconomyUser():
             initial_balance = de_register["final_balance"]
             db_utils.delete("_id", de_register["_id"], self.database_name, CollectionNames.deregisters.value)
         else:
-            initial_balance = _global_settings.initial_number_of_coins
+            initial_balance = GuildSettings.from_database(self.database_name).initial_number_of_coins
             
         db_utils.insert({
             '_id': self._id,

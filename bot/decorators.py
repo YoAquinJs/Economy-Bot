@@ -2,11 +2,12 @@
 
 import discord
 
+from utils.utils import id_to_objectid, get_global_settings
 from bot.bot_utils import send_message, get_database_name
-from models.economy_user import EconomyUser
-from utils.utils import get_global_settings, id_to_objectid
 
-global_settings = get_global_settings()
+from models.economy_user import EconomyUser
+
+_global_settings = get_global_settings()
 
 
 def guild_required():
@@ -26,9 +27,10 @@ def register_required():
     """
     
     async def predicate(ctx: discord.ext.commands.context):
-        user_exists = EconomyUser(id_to_objectid(ctx.author.id), get_database_name(ctx.guild)).get_data_from_db()
+        database_name = get_database_name(ctx.guild)
+        user_exists = EconomyUser(id_to_objectid(ctx.author.id),database_name ).get_data_from_db()
         if user_exists is False:
-            await send_message(ctx, f"Usuario no registrado, Registrate con {global_settings.prefix}registro", auto_time=True)
+            await send_message(ctx, f"Usuario no registrado, Registrate con {_global_settings.prefix}registro", auto_time=True)
 
         return user_exists
     

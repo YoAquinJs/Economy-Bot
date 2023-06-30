@@ -3,13 +3,12 @@
 import bson
 from typing import Union
 
-from utils.utils import get_global_settings, get_time, id_to_objectid
+from utils.utils import get_time
+from models.guild_settings import GuildSettings
 from models.economy_user import EconomyUser
 from models.product import Product
 from models.logs import *
 from models.enums import TransactionStatus, TransactionType
-
-_global_settings = get_global_settings()
 
 
 def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float, database_name: str, type: TransactionType, 
@@ -31,9 +30,10 @@ def new_transaction(sender: EconomyUser, receptor: EconomyUser, quantity: float,
     """
     
     system_user = EconomyUser.get_system_user()
-    
-    quantity = round(quantity, _global_settings.max_decimals)
-    if quantity+((1/(10**(_global_settings.max_decimals+1)))*int(type == TransactionType.initial_coins)) <= 0.0:
+    guild_settings = GuildSettings.from_database(database_name)
+
+    quantity = round(quantity, guild_settings.max_decimals)
+    if quantity+((1/(10**(guild_settings.max_decimals+1)))*int(type == TransactionType.initial_coins)) <= 0.0:
         return TransactionStatus.negative_quantity, ''
             
     if type == TransactionType.initial_coins or type == TransactionType.forged:

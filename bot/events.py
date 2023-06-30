@@ -1,6 +1,5 @@
 """Este modulo contiene los callback de eventos de discord"""
 
-import bson
 import discord
 from discord.ext import commands
 
@@ -8,17 +7,18 @@ from bot.bot_utils import *
 from bot.discord_client import get_client
 
 from core.logger import report_bug_log
-from core.transactions import new_transaction
 from core.store import reaction_to_product
 
-from models.economy_user import EconomyUser
-from models.enums import TransactionStatus, TransactionType, CollectionNames
+from models.guild_settings import GuildSettings
+from models.enums import CollectionNames
 from models.product import Product
 
-from database import db_utils
-from utils.utils import get_global_settings, objectid_to_id, id_to_objectid
+from database.mongo_client import get_mongo_client
+from database.db_utils import insert
+from utils.utils import get_global_settings, id_to_objectid
 
 client = get_client()
+_mongo_client = get_mongo_client()
 global_settings = get_global_settings()
 
 
@@ -32,6 +32,41 @@ async def on_ready():
     print(client.user.id)
     print('-----------')
 
+
+@client.event
+async def on_guild_join(guild: discord.Guild):
+    """Inicializa la base de datos de un servidor de discord al que el bot se une
+
+    Args:
+        guild (discord.Guild): Servidor al que se unio el bot
+    """
+    
+    database_name = get_database_name(guild)
+    
+    guild_settings = GuildSettings.from_global_settings(global_settings)
+    guild_settings._id = id_to_objectid(0)
+    insert_result = insert(guild_settings.__dict__, database_name, CollectionNames.settings.value)
+    
+    if database_name not in _mongo_client.list_database_names():
+        raise Exception(f"Couldn't create database {database_name}")
+    
+    
+    if insert_result is None:
+        raise Exception(f"Couldn't create settings file for {database_name}")
+    
+
+@client.event
+async def on_guild_remove(guild: discord.Guild):
+    """Remueve la base de datos de un servidor de discord al que el bot se une
+
+    Args:
+        guild (discord.Guild): Servidor del que el bot se fue
+    """
+    
+    database_name = get_database_name(guild)
+    
+    _mongo_client.drop_database(database_name)
+    
 
 @client.event
 async def on_command_error(ctx, error):

@@ -5,9 +5,7 @@ from typing import Union
 
 from database import db_utils
 from models.enums import CollectionNames, ProductStatus
-from utils.utils import get_global_settings
-
-global_settings = get_global_settings()
+from models.guild_settings import GuildSettings
 
 
 class Product:
@@ -43,7 +41,7 @@ class Product:
         self.user_id = user_id
         self.title = title
         self.description = description
-        self.price = round(price, global_settings.max_decimals)
+        self.price = round(price, GuildSettings.from_database(database_name).max_decimals)
         self.database_name = database_name
         self._id = _id
 

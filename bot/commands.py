@@ -18,11 +18,12 @@ import core.users
 
 from models.product import Product
 from models.economy_user import EconomyUser
+from models.guild_settings import GuildSettings
 from models.enums import ProductStatus, TransactionStatus, TransactionType, CollectionNames, CommandNames
-from utils.utils import get_global_settings, objectid_to_id, id_to_objectid, key_split
+from utils.utils import objectid_to_id, id_to_objectid, key_split, get_global_settings
 
 client = get_client()
-global_settings = get_global_settings()
+_global_settings = get_global_settings()
 
 
 @client.command(name=CommandNames.ping.value)
@@ -59,7 +60,7 @@ async def report_bug(ctx: Context, command: str, *, info: str):
                               "que los desarrolladores también somos personas.")
         await ctx.author.send(f'El ID de tu reporte "{title_description[0]}" es: {inserted_id}')
     else:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro", auto_time=True)
 
 
 @client.command(name=CommandNames.registro.value)
@@ -73,14 +74,15 @@ async def register(ctx: Context):
     """
 
     database_name = get_database_name(ctx.guild)
+    guild_settings = GuildSettings.from_database(database_name)
     new_user = EconomyUser(id_to_objectid(ctx.author.id), database_name, name=ctx.author.name)
 
     registereable, initial_balance = new_user.register()
     if registereable:
         core.economy_management.update_user_status(new_user._id, database_name)
         _, _ = core.transactions.new_transaction(None, new_user, initial_balance, database_name, TransactionType.initial_coins)
-        await send_message(ctx, f'Has sido añadido a la {global_settings.economy_name} {new_user.name}, '
-                                f'tienes {new_user.balance.balance} {global_settings.coin_name}')
+        await send_message(ctx, f'Has sido añadido a la {guild_settings.economy_name} {new_user.name}, '
+                                f'tienes {new_user.balance.balance} {guild_settings.coin_name}')
     else:
         await send_message(ctx, f'{new_user.name} ya estas registrado', auto_time=True)
 
@@ -107,7 +109,7 @@ async def de_register(ctx: Context, *, motive: str = "nulo"):
             user.unregister()
             core.economy_management.update_user_status(user._id, database_name)
             core.logger.send_unregistered_log(user, motive)
-            await send_message(ctx, f'{user.name} has salido de la {global_settings.economy_name}, lamentamos tu partida')
+            await send_message(ctx, f'{user.name} has salido de la {GuildSettings.from_database(database_name).economy_name}, lamentamos tu partida')
         else:
             await send_message(ctx, f'El usuario posee productos, primero elimina todos tus productos', auto_time=True)
 
@@ -123,14 +125,15 @@ async def get_coins(ctx: Context):
     """
     
     database_name = get_database_name(ctx.guild)
+
     user = EconomyUser(id_to_objectid(ctx.author.id), database_name)
     exists = user.get_data_from_db()
 
     if exists:
         await ctx.message.delete()
-        await ctx.author.send(f"Tu saldo actual es de {user.balance} {global_settings.coin_name} {ctx.author.name}.")
+        await ctx.author.send(f"Tu saldo actual es de {user.balance} {GuildSettings.from_database(database_name).coin_name} {ctx.author.name}.")
     else:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro.", auto_time=True)
 
 
 @client.command(name=CommandNames.usuario.value)
@@ -142,26 +145,29 @@ async def get_user_by_name(ctx: Context, _user: discord.Member | str):
         ctx (discord.ext.commands.Context): Context de discord
         _user (discord.Member | str): Nombre o mencion de un usuario a buscar
     """
-
+    
+    database_name = get_database_name(ctx.guild)
+    guild_settings = GuildSettings.from_database(database_name)
+    
     users = []
     embed = discord.Embed(colour=discord.colour.Color.gold(), title="Usuarios Encontrados", description=f"Tabla de los usuarios con el nombre especificado")
 
     if isinstance(_user, str):
-        users = core.users.get_users_starting_with(_user, get_database_name(ctx.guild))
+        users = core.users.get_users_starting_with(_user, database_name)
         
         if len(users) == 0:
             embed.add_field(name="Ninguno", value="No se encontró ningún usuario.")
     else:
-        fetched_user = EconomyUser(id_to_objectid(_user.id), get_database_name(ctx.guild))
+        fetched_user = EconomyUser(id_to_objectid(_user.id), database_name)
         if fetched_user.get_data_from_db() is True:
             embed.add_field(
                 name=f"{fetched_user.name}",
-                value=f"ID: {objectid_to_id(fetched_user._id)}\n{global_settings.coin_name}: {fetched_user.balance}")
+                value=f"ID: {objectid_to_id(fetched_user._id)}\n{guild_settings.coin_name}: {fetched_user.balance}")
 
     for user in users:
         embed.add_field(
             name=f"{user.name}",
-            value=f"ID: {objectid_to_id(user._id)}\n{global_settings.coin_name}: {user.balance}")
+            value=f"ID: {objectid_to_id(user._id)}\n{guild_settings.coin_name}: {user.balance}")
 
     await ctx.channel.send(embed=embed)
 
@@ -180,30 +186,31 @@ async def transference(ctx: Context, quantity: float, receptor: discord.Member, 
     """
     
     database_name = get_database_name(ctx.guild)
-
+    guild_settings = GuildSettings.from_database(database_name)
+    
     sender = EconomyUser(id_to_objectid(ctx.author.id), database_name)
     receptor_euser = EconomyUser(id_to_objectid(receptor.id), database_name)
 
     status, transaction_id = core.transactions.new_transaction(sender, receptor_euser, quantity, database_name, TransactionType.user_to_user, reason=reason)
     
     if status == TransactionStatus.negative_quantity:
-        await send_message(ctx, f"Cantidad invalida. No puedes enviar cantidades negativas o ningun {global_settings.coin_name}.", auto_time=True)
+        await send_message(ctx, f"Cantidad invalida. No puedes enviar cantidades negativas o ningun {guild_settings.coin_name}.", auto_time=True)
     elif status == TransactionStatus.sender_not_exists:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro.", auto_time=True)
     elif status == TransactionStatus.receptor_not_exists:
         await send_message(ctx, f"{receptor.name} no es un usuario registrado.", auto_time=True)
     elif status == TransactionStatus.sender_is_receptor:
-        await send_message(ctx, f"Transferencia invalida. No puedes enviar {global_settings.coin_name} a ti mismo.", auto_time=True)
+        await send_message(ctx, f"Transferencia invalida. No puedes enviar {guild_settings.coin_name} a ti mismo.", auto_time=True)
     elif status == TransactionStatus.insufficient_coins:
-        await send_message(ctx, f"No tienes suficientes {global_settings.coin_name} para esta transacción.", auto_time=True)
+        await send_message(ctx, f"No tienes suficientes {guild_settings.coin_name} para esta transacción.", auto_time=True)
     elif status == TransactionStatus.succesful:
         await send_message(ctx, "Transacción completada.", auto_time=True)
         await ctx.author.send(f"Le transferiste al usuario {receptor.name}, ID: {receptor.id}, {quantity} "
-                              f"{global_settings.coin_name}, tu saldo actual es de {sender.balance.value} {global_settings.coin_name}.\n"
+                              f"{guild_settings.coin_name}, tu saldo actual es de {sender.balance.value} {guild_settings.coin_name}.\n"
                               f"ID de transaccion: {transaction_id}")
 
         await receptor.send(f"El usuario {ctx.author.name}, ID: {objectid_to_id(ctx.author.id)}, te ha transferido {quantity} "
-                            f"{global_settings.coin_name}, tu saldo actual es de {receptor_euser.balance.value} {global_settings.coin_name}.\n"
+                            f"{guild_settings.coin_name}, tu saldo actual es de {receptor_euser.balance.value} {guild_settings.coin_name}.\n"
                             f"ID de transacción: {transaction_id}")
 
 
@@ -284,10 +291,11 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
         await send_message(ctx, "Debes ingresar el nombre de la persona a la que deseas transferir.", auto_time=True)
         return
 
+    database_name = get_database_name(ctx.guild)
+    
     name_description = key_split(info, "/")
     title = name_description[0]
     description = name_description[1]
-    database_name = get_database_name(ctx.guild)
 
     new_product = Product(id_to_objectid(ctx.author.id), title, description, price, database_name)
     check = new_product.check_info()
@@ -296,7 +304,7 @@ async def sell_product_in_shop(ctx: Context, price: float, *, info: str):
         await send_message(ctx, "El precio de tu producto no puede ser cero ni negativo.", auto_time=True)
         return
     elif check == ProductStatus.seller_does_not_exist:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro.", auto_time=True)
         return
 
     await ctx.message.delete()
@@ -330,7 +338,7 @@ async def get_products_in_shop(ctx: Context):
     user = EconomyUser(id_to_objectid(ctx.author.id), database_name)
     user_exists = user.get_data_from_db()
     if user_exists is None:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro.", auto_time=True)
         return
 
     products = core.store.get_user_products(user.id, database_name)
@@ -342,7 +350,7 @@ async def get_products_in_shop(ctx: Context):
 
     for product in products:
         embed.add_field(name=f"{product.title}",
-                        value=f"Precio: {product.price} {global_settings.coin_name}\nID: {objectid_to_id(product.id)}")
+                        value=f"Precio: {product.price} {GuildSettings.from_database(database_name).coin_name}\nID: {objectid_to_id(product.id)}")
 
     await ctx.channel.send(embed=embed)
 
@@ -367,7 +375,7 @@ async def del_product_in_shop(ctx: Context, _id: int):
 
     user_exists = EconomyUser(id_to_objectid(ctx.author.id), database_name).get_data_from_db()
     if user_exists is False:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro.", auto_time=True)
         return
 
     channel = discord.utils.get(client.get_guild(ctx.guild.id).channels, id=ctx.channel.id)
@@ -401,12 +409,13 @@ async def help_cmd(ctx: Context):
         ctx (discord.ext.commands.Context): Context de discord
     """
     
+    guild_settings = GuildSettings.from_database(get_database_name(ctx.guild))
     embed = discord.Embed(title=f"ECONOMY BOT | {client.command_prefix}{CommandNames.ayuda.value}", colour=discord.colour.Color.orange(),
                           description="Lista de los comandos del Economy Bot")
 
     embed.add_field(
         name=f"{client.command_prefix}{CommandNames.registro.value}",
-        value=f"Registra un usuario con su nombre, Id del serivor, y {global_settings.coin_name}'s iniciales",
+        value=f"Registra un usuario con su nombre, Id del serivor, y {guild_settings.coin_name}'s iniciales",
     )
 
     embed.add_field(
@@ -416,7 +425,7 @@ async def help_cmd(ctx: Context):
 
     embed.add_field(
         name=f"{client.command_prefix}{CommandNames.balance.value}",
-        value=f"Muestra la cantidad de {global_settings.coin_name} que posee usuario.",
+        value=f"Muestra la cantidad de {guild_settings.coin_name} que posee usuario.",
     )
 
     embed.add_field(
@@ -428,9 +437,9 @@ async def help_cmd(ctx: Context):
 
     embed.add_field(
         name=f"{client.command_prefix}{CommandNames.transferir.value} *cantidad* *receptor* *razon*",
-        value=f"Transfiere {global_settings.coin_name} de tu wallet a la del usuario especificado\n\n"
+        value=f"Transfiere {guild_settings.coin_name} de tu wallet a la del usuario especificado\n\n"
               f"Parametros:\n"
-              f"*cantidad*: Cantidad de {global_settings.coin_name}.\n"
+              f"*cantidad*: Cantidad de {guild_settings.coin_name}.\n"
               f"*receptor*: Nombre del usuario receptor (@usuario).\n"
               f"*razon*: Razon de la transaccion (opcional)",
     )
@@ -446,7 +455,7 @@ async def help_cmd(ctx: Context):
         name=f"{client.command_prefix}{CommandNames.producto.value} *precio* *info*",
         value="Crea un producto en un mensaje. La compra se realizará a través de reacciones.\n\n"
               "Parametros:\n"
-              f"*precio*: Cantidad de {global_settings.coin_name}\n"
+              f"*precio*: Cantidad de {guild_settings.coin_name}\n"
               "*info*: Nombre/description, separar el nombre y la descripcion con '/'",
     )
 
@@ -499,23 +508,24 @@ async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
     """
     
     database_name = get_database_name(ctx.guild)
-
+    guild_settings = GuildSettings.from_database(database_name)
+    
     admin_euser = EconomyUser(id_to_objectid(ctx.author.id), database_name)
     receptor_euser = EconomyUser(id_to_objectid(receptor.id), database_name)
 
     status, transaction_id = core.transactions.new_transaction(None, receptor_euser, quantity, database_name, TransactionType.admin_to_user, admin=admin_euser)
     
     if status == TransactionStatus.sender_not_exists:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro.", auto_time=True)
     if status == TransactionStatus.negative_quantity:
-        await send_message(ctx, f"Cantidad invalida. No puedes imprimir cantidades negativas o cero {global_settings.coin_name}.", auto_time=True)
+        await send_message(ctx, f"Cantidad invalida. No puedes imprimir cantidades negativas o cero {guild_settings.coin_name}.", auto_time=True)
     elif status == TransactionStatus.receptor_not_exists:
         await send_message(ctx, f"{receptor.name} no es un usuario registrado.", auto_time=True)
     elif status == TransactionStatus.succesful:
-        await send_message(ctx, f"Se imprimieron {quantity} {global_settings.coin_name}, y se asignaron al usuario {receptor.name}, ID: {receptor.id}\n"
+        await send_message(ctx, f"Se imprimieron {quantity} {guild_settings.coin_name}, y se asignaron al usuario {receptor.name}, ID: {receptor.id}\n"
                               f"ID de transaccion: {transaction_id}")
-        await receptor.send(f"El administrador {ctx.author.name}, ID: {ctx.author.id}, te ha impreso {quantity} {global_settings.coin_name},"
-                            f"tu saldo actual es de {receptor_euser.balance.value} {global_settings.coin_name}.\n"
+        await receptor.send(f"El administrador {ctx.author.name}, ID: {ctx.author.id}, te ha impreso {quantity} {guild_settings.coin_name},"
+                            f"tu saldo actual es de {receptor_euser.balance.value} {guild_settings.coin_name}.\n"
                             f"ID de transacción: {transaction_id}")
 
 
@@ -533,6 +543,7 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
     """
 
     database_name = get_database_name(ctx.guild)
+    guild_settings = GuildSettings.from_database(database_name)
 
     admin_euser = EconomyUser(id_to_objectid(ctx.author.id), database_name)
     receptor_euser = EconomyUser(id_to_objectid(receptor.id), database_name)
@@ -540,16 +551,16 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
     status, transaction_id = core.transactions.new_transaction(receptor_euser, None, quantity, database_name, TransactionType.admin_to_user, admin=admin_euser)
     
     if status == TransactionStatus.sender_not_exists:
-        await send_message(ctx, f"Usuario no registrado. Registrate con {global_settings.prefix}registro.", auto_time=True)
+        await send_message(ctx, f"Usuario no registrado. Registrate con {_global_settings.prefix}registro.", auto_time=True)
     if status == TransactionStatus.negative_quantity:
-        await send_message(ctx, f"Cantidad invalida. No puedes imprimir cantidades negativas o cero {global_settings.coin_name}.", auto_time=True)
+        await send_message(ctx, f"Cantidad invalida. No puedes imprimir cantidades negativas o cero {guild_settings.coin_name}.", auto_time=True)
     elif status == TransactionStatus.receptor_not_exists:
         await send_message(ctx, f"{receptor.name} no es un usuario registrado.", auto_time=True)
     elif status == TransactionStatus.succesful:
-        await send_message(ctx, f"Se expropiaron {quantity} {global_settings.coin_name} al usuario {receptor.name}, ID: {receptor.id}\n"
+        await send_message(ctx, f"Se expropiaron {quantity} {guild_settings.coin_name} al usuario {receptor.name}, ID: {receptor.id}\n"
                            f"ID de transaccion: {transaction_id}")
-        await receptor.send(f"El administrador {ctx.author.name}, ID: {ctx.author.id}, te ha expropiado {quantity} {global_settings.coin_name},"
-                            f"tu saldo actual es de {receptor_euser.balance.value} {global_settings.coin_name}.\n"
+        await receptor.send(f"El administrador {ctx.author.name}, ID: {ctx.author.id}, te ha expropiado {quantity} {guild_settings.coin_name},"
+                            f"tu saldo actual es de {receptor_euser.balance.value} {guild_settings.coin_name}.\n"
                             f"ID de transacción: {transaction_id}")
 
 
@@ -567,10 +578,11 @@ async def init_forge(ctx: Context):
 
 
     database_name = get_database_name(ctx.guild)
-        
+    guild_settings = GuildSettings.from_database(database_name)
+    
     await ctx.message.delete()
     embed = discord.Embed(colour=discord.colour.Color.gold(), title="Forjado de Monedas",
-                          description=f"Cada {15} segundos se forjaran {1} {global_settings.coin_name}.")
+                          description=f"Cada {15} segundos se forjaran {1} {guild_settings.coin_name}.")
     await ctx.channel.send(embed=embed)
 
     fetched_users = db_utils.query_all(database_name, CollectionNames.users.value).find({})
@@ -595,9 +607,11 @@ async def init_forge(ctx: Context):
                 core.economy_management._users[database_name] = [user["_id"] for user in fetched_users]
                 wait_time = 0
             else:
-                asyncio.create_task(send_message(ctx, f"Se ha asignado a {random_user.name}", f"Se han forjado {1} {global_settings.coin_name}", time=15))
-                asyncio.create_task(ctx.guild.get_member(objectid_to_id(random_user._id)).send(f"Se te han asignado {1} {global_settings.coin_name} forjadas,\n "
-                                                                 f"tu saldo actual es de {random_user.balance.value} {global_settings.coin_name}.\n"
+                guild_settings = GuildSettings.from_database(database_name)
+                
+                asyncio.create_task(send_message(ctx, f"Se ha asignado a {random_user.name}", f"Se han forjado {1} {guild_settings.coin_name}", time=15))
+                asyncio.create_task(ctx.guild.get_member(objectid_to_id(random_user._id)).send(f"Se te han asignado {1} {guild_settings.coin_name} forjadas,\n "
+                                                                 f"tu saldo actual es de {random_user.balance.value} {guild_settings.coin_name}.\n"
                                                                  f"ID de transacción: {transaction_id}"))
         await asyncio.sleep(wait_time)
 
@@ -630,9 +644,11 @@ async def reset_economy(ctx: Context):
         ctx (discord.ext.commands.Context): Context de discord
     """
     
+    guild_settings = GuildSettings.from_database(get_database_name(ctx.guild))
+    
     core.economy_management.reset_economy(get_database_name(ctx.guild))
 
-    await send_message(ctx, f"Todos los usuarios tienen {global_settings.initial_number_of_coins} {global_settings.coin_name}.")
+    await send_message(ctx, f"Todos los usuarios tienen {guild_settings.initial_number_of_coins} {guild_settings.coin_name}.")
 
 
 @client.command(name=CommandNames.adminayuda.value)
@@ -644,22 +660,24 @@ async def admin_help_cmd(ctx: Context):
         ctx (discord.ext.commands.Context): Context de discord
     """
 
+    guild_settings = GuildSettings.from_database(get_database_name(ctx.guild))
+    
     embed = discord.Embed(title=f"Ayuda | ECONOMY BOT {client.command_prefix}help",
                           colour=discord.colour.Color.orange())
 
     embed.add_field(
         name=f"{client.command_prefix}imprimir *cantidad* *usuario*",
-        value=f"Imprime la cantidad especificada de {global_settings.coin_name} y las asigna a la wallet del usuario.\n\n"
+        value=f"Imprime la cantidad especificada de {guild_settings.coin_name} y las asigna a la wallet del usuario.\n\n"
               "Argumentos:\n"
-              f"*cantidad*: Cantidad de {global_settings.coin_name} a imprimir\n"
+              f"*cantidad*: Cantidad de {guild_settings.coin_name} a imprimir\n"
               "*usuario*: Mención (@user)",
     )
 
     embed.add_field(
         name=f"{client.command_prefix}expropiar *cantidad* *usuario*",
-        value=f"Elimina la cantidad especificada de {global_settings.coin_name} de la wallet del usuario.\n\n"
+        value=f"Elimina la cantidad especificada de {guild_settings.coin_name} de la wallet del usuario.\n\n"
               "Argumentos:\n"
-              f"*cantidad*: Cantidad de {global_settings.coin_name} a expropiar\n"
+              f"*cantidad*: Cantidad de {guild_settings.coin_name} a expropiar\n"
               "*usuario*: Mención (@user)",
     )
 
@@ -670,12 +688,12 @@ async def admin_help_cmd(ctx: Context):
     
     embed.add_field(
         name=f"{client.command_prefix}initforge",
-        value=f"Inicializa el forgado de {global_settings.coin_name}."
+        value=f"Inicializa el forgado de {guild_settings.coin_name}."
     )
 
     embed.add_field(
         name=f"{client.command_prefix}stopforge",
-        value=f"Detiene el forjado de {global_settings.coin_name}."
+        value=f"Detiene el forjado de {guild_settings.coin_name}."
     )
 
     embed.add_field(name="", value="")

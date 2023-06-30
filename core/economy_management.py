@@ -5,13 +5,10 @@ from typing import Mapping, List
 
 from database import db_utils
 from database.db_utils import CollectionNames
-from utils.utils import get_global_settings
+from models.guild_settings import GuildSettings
 
-_frozen = False
 _forge: Mapping[str, bool] = {}
 _users: Mapping[str, List[bson.ObjectId]] = {}
-
-_global_settings = get_global_settings()
 
 
 def forge_coins_status(database_name: str, status: bool):
@@ -47,17 +44,16 @@ def reset_economy(database_name: str):
         database_name (str): Nombre de la base de datos del servidor de discord
     """
     
-    global _frozen
-    _frozen = True
+    guild_settings = GuildSettings.from_database(database_name)
+    
     deregisters = db_utils.query_all(database_name, CollectionNames.deregisters.value)
     for deregister in deregisters.find({}):
-        db_utils.modify("_id", deregister["_id"], "final_balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.deregisters.value)#to new transfer
+        db_utils.modify("_id", deregister["_id"], "final_balance", guild_settings.initial_number_of_coins, database_name, CollectionNames.deregisters.value)#to new transfer
     
     users = db_utils.query_all(database_name, CollectionNames.users.value)
     for user in users.find({}):
-        db_utils.modify("_id", user['_id'], "balance", _global_settings.initial_number_of_coins, database_name, CollectionNames.users.value)#to new transfer
+        db_utils.modify("_id", user['_id'], "balance", guild_settings.initial_number_of_coins, database_name, CollectionNames.users.value)#to new transfer
         
-    _frozen = False
 
 
 def update_user_status(_id: bson.ObjectId, database_name: str):
