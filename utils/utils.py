@@ -51,13 +51,12 @@ def key_split(key: str, split_ch:str = "_") -> Union[str, str]:
         Union[str str]: [Llave separada, Valor separado]
     """
 
-    i = 0
-    for ch in key:
-        if ch == split_ch:
+    for i in range(len(key)-1, 0, -1):
+        if key[i] == split_ch:
             break
-        i = i + 1
 
     return key[0:i], key[i+1:len(key)]
+
 
 def id_to_objectid(id: int) -> bson.ObjectId:
     """Convierte un Id Int64 en ObjectId

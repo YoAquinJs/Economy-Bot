@@ -1,10 +1,14 @@
 """Este modulo contiene el modelo de GuildSettings"""
 
-from database.db_utils import query
-from utils.utils import id_to_objectid
+import discord
+from bot.discord_client import get_client
+from database.db_utils import query, replace
+from utils.utils import id_to_objectid, key_split
 
 from models.global_settings import GlobalSettings
 from models.enums import CollectionNames
+
+client = get_client()
 
 
 class GuildSettings():
@@ -15,18 +19,36 @@ class GuildSettings():
         economy_name (str): Nombre de la economia
         coin_name (str): Nombre de la moneda
         initial_number_of_coins (float): Numero de monedas que se le asigna a un usuario cuando se registra
+        admin_role (discord.Role): Rol de administrador del bot en el servidor
     """
     
     max_decimals: int = ''
     economy_name: str = ''
     coin_name: str = ''
     initial_number_of_coins: float = 0.0
+    admin_role: discord.Role = None
+
 
     def __init__(self, bson):
         """Crea objeto GuildSettings a partir de un bson
         """
 
         self.__dict__.update(bson)
+        
+        
+    def modify_in_db(self, database_name: str) -> bool:
+        """Envia las modificaciones de la configuracion del bot a la base de datos
+
+        Args:
+            database_name (str): Nombre de la base de datos del servidor de discord
+
+        Returns:
+            bool: Si fue existoso o no
+        """
+        
+        self.admin_role = 0 if self.admin_role is None else self.admin_role.id
+        replace_result = replace('_id', id_to_objectid(0), self.__dict__, database_name, CollectionNames.settings.value)
+        return replace_result.matched_count > 0
         
     
     @classmethod
@@ -44,7 +66,8 @@ class GuildSettings():
             "max_decimals": global_settings.max_decimals,
             "economy_name": global_settings.economy_name,
             "coin_name": global_settings.coin_name,
-            "initial_number_of_coins": global_settings.initial_number_of_coins
+            "initial_number_of_coins": global_settings.initial_number_of_coins,
+            "admin_role": None
         })
         
     @classmethod
@@ -59,6 +82,9 @@ class GuildSettings():
         """
         
         guild_settings = query('_id', id_to_objectid(0), database_name, CollectionNames.settings.value)
-        del guild_settings['_id']
+
+        _, guild_id = key_split(database_name)
+        guild = client.get_guild(int(guild_id))
+        guild_settings["admin_role"] = None if guild_settings["admin_role"] == 0 else guild.get_role(guild_settings["admin_role"])
         
         return cls(guild_settings)

@@ -64,5 +64,13 @@ class CommandNames(Enum):
     initforge = 'initforge'
     stopforge = 'stopforge'
     reset = 'reset'
-    serverconfig = 'serverconfig'
-    
+    config = 'config'
+
+class GuildSettingsNames(Enum):
+    """Enum de los nombres de los atributos de las configuraciones del bot en un servidor"""
+
+    max_decimals = 'maximos_decimales'
+    economy_name = 'nombre_economia'
+    coin_name = 'nombre_moneda'
+    admin_role = 'rol_admin'
+    initial_number_of_coins = 'balance_inicial'

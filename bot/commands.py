@@ -19,7 +19,7 @@ import core.users
 from models.product import Product
 from models.economy_user import EconomyUser
 from models.guild_settings import GuildSettings
-from models.enums import ProductStatus, TransactionStatus, TransactionType, CollectionNames, CommandNames
+from models.enums import ProductStatus, TransactionStatus, TransactionType, CollectionNames, CommandNames, GuildSettingsNames
 from utils.utils import objectid_to_id, id_to_objectid, key_split, get_global_settings
 
 client = get_client()
@@ -410,33 +410,33 @@ async def help_cmd(ctx: Context):
     """
     
     guild_settings = GuildSettings.from_database(get_database_name(ctx.guild))
-    embed = discord.Embed(title=f"ECONOMY BOT | {client.command_prefix}{CommandNames.ayuda.value}", colour=discord.colour.Color.orange(),
+    embed = discord.Embed(title=f"ECONOMY BOT | {_global_settings.prefix}{CommandNames.ayuda.value}", colour=discord.colour.Color.orange(),
                           description="Lista de los comandos del Economy Bot")
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.registro.value}",
+        name=f"{_global_settings.prefix}{CommandNames.registro.value}",
         value=f"Registra un usuario con su nombre, Id del serivor, y {guild_settings.coin_name}'s iniciales",
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.desregistro.value}",
+        name=f"{_global_settings.prefix}{CommandNames.desregistro.value}",
         value="Elimina un usuario y se congela su wallet, al volverse a registrar se descongela con los fondos previos.",
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.balance.value}",
+        name=f"{_global_settings.prefix}{CommandNames.balance.value}",
         value=f"Muestra la cantidad de {guild_settings.coin_name} que posee usuario.",
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.usuario.value} *nombre*",
+        name=f"{_global_settings.prefix}{CommandNames.usuario.value} *nombre*",
         value="Entrega los IDs de los usuarios encontrados a partir del nombre especificado\n\n"
               "Parametros:\n"
               "*nombre*: Usuario que se desea busacar (@usuario o usuario).",
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.transferir.value} *cantidad* *receptor* *razon*",
+        name=f"{_global_settings.prefix}{CommandNames.transferir.value} *cantidad* *receptor* *razon*",
         value=f"Transfiere {guild_settings.coin_name} de tu wallet a la del usuario especificado\n\n"
               f"Parametros:\n"
               f"*cantidad*: Cantidad de {guild_settings.coin_name}.\n"
@@ -445,31 +445,22 @@ async def help_cmd(ctx: Context):
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.validar.value} *id*",
+        name=f"{_global_settings.prefix}{CommandNames.validar.value} *id*",
         value="Indica si una transacción es válida, a través de su ID\n\n"
               "Parametros:\n"
               "*id*: Identificador de la transacción.",
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.producto.value} *precio* *info*",
+        name=f"{_global_settings.prefix}{CommandNames.producto.value} *precio* *info*",
         value="Crea un producto en un mensaje. La compra se realizará a través de reacciones.\n\n"
               "Parametros:\n"
               f"*precio*: Cantidad de {guild_settings.coin_name}\n"
               "*info*: Nombre/description, separar el nombre y la descripcion con '/'",
     )
 
-    #embed.add_field(
-    #    name=f"{client.command_prefix}editproducto *id* *precio* *info*",
-    #    value="""Edita un producto. Si se pone 0 en *precio* o *info*, se dejará el valor previo.\n\n"
-    #          "Parametros:\n"
-    #          "*id*: ID del producto\n"
-    #          "*precio*: Cantidad de monedas\n"
-    #          "*info*: Nombre"/"description""",
-    #)
-
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.bug.value} *comando* *info*",
+        name=f"{_global_settings.prefix}{CommandNames.bug.value} *comando* *info*",
         value="Reporta un error a los desarrolladores. Por favor úsese con moderación.\n\n"
               "Parametros:\n"
               "*comando*: Comando que ocasionó el error\n"
@@ -477,14 +468,14 @@ async def help_cmd(ctx: Context):
     )
     
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.delproducto.value} *id*",
+        name=f"{_global_settings.prefix}{CommandNames.delproducto.value} *id*",
         value="""Elimina un producto del propio usuario, o por accion de un administrador\n\n"
               "Parametros:\n"
               "*id*: ID del producto""",
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}{CommandNames.productos.value}",
+        name=f"{_global_settings.prefix}{CommandNames.productos.value}",
         value="""Busca todos los productos del usuario.""",
     )
     
@@ -495,9 +486,9 @@ async def help_cmd(ctx: Context):
 
 
 @client.command(name=CommandNames.imprimir.value)
-@commands.has_permissions(administrator=True)
 @guild_required()
 @register_required()
+@admin_required()
 async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para agregar una cantidad de monedas a un usuario.
 
@@ -530,9 +521,9 @@ async def print_coins(ctx: Context, quantity: float, receptor: discord.Member):
 
 
 @client.command(name=CommandNames.expropiar.value)
-@commands.has_permissions(administrator=True)
 @guild_required()
 @register_required()
+@admin_required()
 async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Member):
     """Comando que requiere permisos de administrador y sirve para quitarle monedas a un usuario
 
@@ -565,9 +556,9 @@ async def expropriate_coins(ctx: Context, quantity: float, receptor: discord.Mem
 
 
 @client.command(name=CommandNames.initforge.value)
-@commands.has_permissions(administrator=True)
 @guild_required()
 @register_required()
+@admin_required()
 async def init_forge(ctx: Context):
     """Con este comando se inizializa el forgado de monedas, cada nuevo forgado se le asigna una moneda a un usuario
         random y se guarda un log del diccionario con los usuarios y su cantidad de monedas en la base de datos
@@ -617,9 +608,9 @@ async def init_forge(ctx: Context):
 
 
 @client.command(name=CommandNames.stopforge.value)
-@commands.has_permissions(administrator=True)
 @guild_required()
 @register_required()
+@admin_required()
 async def stop_forge(ctx: Context):
     """Detiene el forjado de monedas en el servidor
 
@@ -634,9 +625,9 @@ async def stop_forge(ctx: Context):
 
 
 @client.command(name=CommandNames.reset.value)
-@commands.has_permissions(administrator=True)
 @guild_required()
 @register_required()
+@admin_required()
 async def reset_economy(ctx: Context):
     """Reinicia los balances de todos los usuarios a la configuracion de initial_coins, Requiere permisos de administrador
 
@@ -651,6 +642,99 @@ async def reset_economy(ctx: Context):
     await send_message(ctx, f"Todos los usuarios tienen {guild_settings.initial_number_of_coins} {guild_settings.coin_name}.")
 
 
+@client.command(name=CommandNames.config.value)
+@guild_required()
+@register_required()
+@commands.has_permissions(administrator=True)
+async def config_economy(ctx: Context, *, params: str):
+    """Reinicia los balances de todos los usuarios a la configuracion de initial_coins, Requiere permisos de administrador
+
+    Args:
+        ctx (discord.ext.commands.Context): Context de discord
+        params (str): Parametros Key-Value a configurar
+    """
+    
+    database_name = get_database_name(ctx.guild)
+    guild_settings = GuildSettings.from_database(database_name)
+    
+    if params[len(params)-1] != '/':
+        params += '/'
+    
+    max_decimals_str = f"'{GuildSettingsNames.max_decimals.value}':"
+    max_decimals_idx = params.rfind(max_decimals_str)
+    if max_decimals_idx != -1:
+        max_decimals = params[max_decimals_idx+len(max_decimals_str):params.find('/', max_decimals_idx+len(max_decimals_str))]    
+        try:
+            max_decimals = int(max_decimals)
+            if max_decimals < 0 or max_decimals > 10:
+                raise BadArgument("")
+            
+            guild_settings.max_decimals = max_decimals
+        except:
+            await send_message(ctx, f"El valor {GuildSettingsNames.max_decimals.value} no es valido")
+            return
+            
+    coin_name_str = f"'{GuildSettingsNames.coin_name.value}':"
+    coin_name_idx = params.rfind(coin_name_str)
+    if coin_name_idx != -1:
+        coin_name = params[coin_name_idx+len(coin_name_str):params.find('/', coin_name_idx+len(coin_name_str))]    
+        try:
+            if len(coin_name) == 0 or len(coin_name) > 50:
+                raise BadArgument("")
+            
+            guild_settings.coin_name = coin_name
+        except:
+            await send_message(ctx, f"El valor {GuildSettingsNames.coin_name.value} no es valido")
+            return
+            
+    admin_role_str = f"'{GuildSettingsNames.admin_role.value}':"
+    admin_role_idx = params.rfind(admin_role_str)
+    if admin_role_idx != -1:
+        admin_role = params[admin_role_idx+len(admin_role_str):params.find('/', admin_role_idx+len(admin_role_str))]
+        try:
+            admin_role = int(admin_role.replace(" ", "").replace("<@&", "").replace(">", ""))
+            admin_role = ctx.guild.get_role(admin_role)
+
+            guild_settings.admin_role = admin_role
+        except:
+            await send_message(ctx, f"El valor {GuildSettingsNames.admin_role.value} no es valido")
+            return
+            
+    economy_name_str = f"'{GuildSettingsNames.economy_name.value}':"
+    economy_name_idx = params.rfind(economy_name_str)
+    if economy_name_idx != -1:
+        economy_name = params[economy_name_idx+len(economy_name_str):params.find('/', economy_name_idx+len(economy_name_str))]
+        try:
+            if len(economy_name) == 0 or len(economy_name) > 100:
+                raise BadArgument("")
+            
+            guild_settings.economy_name = economy_name
+        except:
+            await send_message(ctx, f"El valor {GuildSettingsNames.economy_name.value} no es valido")
+            return
+
+    initial_number_of_coins_str = f"'{GuildSettingsNames.initial_number_of_coins.value}':"
+    initial_number_of_coins_idx = params.rfind(initial_number_of_coins_str)
+    if initial_number_of_coins_idx != -1:
+        initial_number_of_coins = params[initial_number_of_coins_idx+len(initial_number_of_coins_str):params.find('/', initial_number_of_coins_idx+len(initial_number_of_coins_str))]    
+        try:
+            initial_number_of_coins = float(initial_number_of_coins)
+            initial_number_of_coins = round(initial_number_of_coins, guild_settings.max_decimals)
+            if initial_number_of_coins < 0:
+                raise BadArgument("")
+            
+            guild_settings.initial_number_of_coins = initial_number_of_coins
+        except:
+            await send_message(ctx, f"El valor {GuildSettingsNames.initial_number_of_coins.value} no es valido")
+            return
+    
+    succes = guild_settings.modify_in_db(database_name)
+    if succes is True:
+       await send_message(ctx, f"Configuraciones realizadas correctamente.")
+    else:
+       await send_message(ctx, f"Ah ocurrido un error, vuelve a intentarlo.")
+
+
 @client.command(name=CommandNames.adminayuda.value)
 async def admin_help_cmd(ctx: Context):
     """Retorna la lista de comandos disponibles para los admins, Manda un mensaje con la información de los comandos del
@@ -662,11 +746,12 @@ async def admin_help_cmd(ctx: Context):
 
     guild_settings = GuildSettings.from_database(get_database_name(ctx.guild))
     
-    embed = discord.Embed(title=f"Ayuda | ECONOMY BOT {client.command_prefix}help",
+    embed = discord.Embed(title=f"ECONOMY BOT {_global_settings.prefix}{CommandNames.adminayuda.value}",
+                          description="Lista de los comandos que requiren permisos de administrador del Economy Bot",
                           colour=discord.colour.Color.orange())
 
     embed.add_field(
-        name=f"{client.command_prefix}imprimir *cantidad* *usuario*",
+        name=f"{_global_settings.prefix}imprimir *cantidad* *usuario*",
         value=f"Imprime la cantidad especificada de {guild_settings.coin_name} y las asigna a la wallet del usuario.\n\n"
               "Argumentos:\n"
               f"*cantidad*: Cantidad de {guild_settings.coin_name} a imprimir\n"
@@ -674,7 +759,7 @@ async def admin_help_cmd(ctx: Context):
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}expropiar *cantidad* *usuario*",
+        name=f"{_global_settings.prefix}expropiar *cantidad* *usuario*",
         value=f"Elimina la cantidad especificada de {guild_settings.coin_name} de la wallet del usuario.\n\n"
               "Argumentos:\n"
               f"*cantidad*: Cantidad de {guild_settings.coin_name} a expropiar\n"
@@ -682,20 +767,69 @@ async def admin_help_cmd(ctx: Context):
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}reset",
+        name=f"{_global_settings.prefix}reset",
         value="Pone los balances de todos los usuarios en 0."
     )
     
     embed.add_field(
-        name=f"{client.command_prefix}initforge",
+        name=f"{_global_settings.prefix}initforge",
         value=f"Inicializa el forgado de {guild_settings.coin_name}."
     )
 
     embed.add_field(
-        name=f"{client.command_prefix}stopforge",
+        name=f"{_global_settings.prefix}stopforge",
         value=f"Detiene el forjado de {guild_settings.coin_name}."
     )
-
+    
     embed.add_field(name="", value="")
     
+    embed.add_field(
+        name=f"{_global_settings.prefix}config *parametros*",
+        value=f"Modifica la configuracion del bot, ver configuraciones del bot para mas detalles. __Require permisos de administrador en el servidor, no del bot__\n\n"
+              "Argumentos:\n"
+              "*parametros*: 'Llave1':valor1/'Llave2':valor2/... Nombre del parametro a modificar encerrado en ''"
+              "y seguido del valor separado por ':', y usar '/' para separar los parametros\n"
+    )
+    
     await ctx.send(embed=embed)
+    
+    config_embed = discord.Embed(title="Configuracion del Bot",
+                      description="Configuraciones disponibles del bot",
+                      colour=discord.colour.Color.orange())
+
+    config_embed.add_field(
+        name=f"Rol de Admin del bot, Valor actual: {f'@{guild_settings.admin_role.name}' if guild_settings.admin_role != None else '*No Configurado*'}",
+        value=f"""Configuracion del rol con permisos de admin del bot, el cual permite ejecutar los comandos admin (exceptuando {_global_settings.prefix}config), para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.admin_role.value}'**:*Nuevo Rol*/...\n
+                Nuevo Rol: Mencion @Rol"""
+    )
+
+    config_embed.add_field(
+        name=f"Nombre de la Economia, Valor actual: {guild_settings.economy_name}",
+        value=f"""Configuracion del nombre de la economia del servidor, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.economy_name.value}'**:*Nuevo Nombre*/...\n
+                Nuevo Nombre: Texto sin incluir '/'"""
+    )
+    
+    config_embed.add_field(
+        name=f"Nombre de la Moneda, Valor actual: {guild_settings.coin_name}",
+        value=f"""Configuracion del nombre de la moneda del servidor, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.coin_name.value}'**:*Nuevo Nombre*/...\n
+                Nuevo Nombre: Texto sin incluir '/'"""
+    )
+    
+    config_embed.add_field(
+        name=f"Balance inicial de los usuarios, Valor actual: {guild_settings.initial_number_of_coins}",
+        value=f"""Configuracion del balance inicial que tienen los usuarios al registrarse en el bot, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.initial_number_of_coins.value}'**:*Nuevo Balance*/...\n
+                Balance: Numero no negativo con y sin decimales"""
+    )
+    
+    config_embed.add_field(
+        name=f"Maximo numero de decimales, Valor actual: {guild_settings.max_decimals}",
+        value=f"""Configuracion de la cantidad maxima de decimales , para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.max_decimals.value}'**:*Nuevo Nombre*/...\n
+                Nuevo nombre: Texto sin incluir '/'"""
+    )
+    
+    await ctx.send(embed=config_embed)
