@@ -14,6 +14,7 @@ class Product:
     Attributes:
         _id (bson.ObjectId): Id del producto
         user_id (bson.ObjectId): Id del usuario propietario del producto
+        channel_id (bson.ObjectId): Id del canal donde se encuentra el producto
         title (str): Titulo del producto
         description (str): Titulo del producto
         price (float): Costo del producto
@@ -22,23 +23,26 @@ class Product:
     
     _id: bson.ObjectId = None
     user_id: bson.ObjectId = None
+    channel_id: bson.ObjectId = None
     title: str = ''
     description: str = ''
     price: float = 0.0
     database_name: str = ''
      
-    def __init__(self, user_id: bson.ObjectId, title: str, description: str, price: float, database_name: str, _id: bson.ObjectId = None):
+    def __init__(self, user_id: bson.ObjectId, channel_id: bson.ObjectId, title: str, description: str, price: float, database_name: str, _id: bson.ObjectId = None):
         """Crea un producto
 
         Args:
-            user_id (bson.ObjectId): id del que vemde el producto
+            user_id (bson.ObjectId): Id del usuario que oferta el producto
+            channel_id (bson.ObjectId): Id del canal donde se encuentra el producto
             title (str): Titulo del que vemde el producto
-            description (str): descripcion del que vemde el producto
-            price (float): precio del que vemde el producto
+            description (str): Descripcion del que vemde el producto
+            price (float): Precio del que vemde el producto
             database_name (str): Nombre de la base de datos del servidor de discord
         """
         
         self.user_id = user_id
+        self.channel_id = channel_id
         self.title = title
         self.description = description
         self.price = round(price, GuildSettings.from_database(database_name).max_decimals)
@@ -64,6 +68,7 @@ class Product:
 
         return cls(
             data['user_id'],
+            data['channel_id'],
             data['title'],
             data['description'],
             data['price'],

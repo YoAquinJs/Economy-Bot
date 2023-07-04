@@ -28,7 +28,7 @@ async def send_message(ctx: Context, text: str, title: str = '', time: int = 0, 
         await ctx.message.delete()
 
     if auto_time is True:
-        wpm = 180  # velocidad de lectura persona promedio
+        wpm = 200  # velocidad de lectura persona promedio
         time = (len(text) / len(text.split()))/wpm * 60 + 1
         await asyncio.sleep(time)
         await msg.delete()

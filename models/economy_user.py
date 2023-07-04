@@ -1,13 +1,16 @@
 """Este modulo contiene los objetos modelo EconomyUser y Balance para su uso en otros modulos"""
 
 import bson
+import discord
 from typing import Union
 
 from database import db_utils
-from utils.utils import id_to_objectid
+from bot.discord_client import get_client
+from utils.utils import id_to_objectid, objectid_to_id, key_split
 from models.guild_settings import GuildSettings
 from models.enums import CollectionNames
 
+client = get_client()
 
 class EconomyUser():
     """Modelo de usuario en la economia
@@ -79,6 +82,23 @@ class EconomyUser():
         """
         
         db_utils.delete('_id', self._id, self.database_name, CollectionNames.users.value)
+
+    async def is_admin(self, channel: discord.abc.Messageable) -> bool:
+        """Verifica si el usuario tiene permisos de administrador
+
+        Args:
+            channel (discord.abc.Messageable): Canal donde se esta ejecutanto el comando
+
+        Returns:
+            bool: Si es administrador o no
+        """
+        
+        _, guild_id = key_split(self.database_name)
+        guild = client.get_guild(int(guild_id))
+        
+        member = await guild.fetch_member(objectid_to_id(self._id))
+        admin_role = GuildSettings.from_database(self.database_name).admin_role
+        return channel.permissions_for(member).administrator is True if admin_role is None else admin_role in member.roles
 
     def get_data_from_db(self) -> bool:
         """Trae los datos del usuario de la base de datos

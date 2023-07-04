@@ -41,8 +41,9 @@ async def reaction_to_product(product: Product, emoji: str, reactant: discord.Me
             await seller_user.send(f"has eliminado tu producto {product.title}")
             return True
     else:
+        reactant_euser = EconomyUser(id_to_objectid(reactant.id), database_name)
         if emoji == "❌": #Admin removal
-            if channel.permissions_for(reactant).administrator: #Admin removal TODO to role checking
+            if await reactant_euser.is_admin(channel):
                 db_utils.delete("_id", product._id, database_name, CollectionNames.shop.value)
 
                 await reactant.send(f"Has eliminado el producto {product.title}, del usuario {seller_user.name}, id"
@@ -51,7 +52,7 @@ async def reaction_to_product(product: Product, emoji: str, reactant: discord.Me
                                        f"{reactant.name}, id {reactant.id}")
                 return True
         elif emoji == "🪙": #Buyer
-            buyer_euser = EconomyUser(id_to_objectid(reactant.id), database_name)
+            buyer_euser = reactant_euser
             seller_euser = EconomyUser(id_to_objectid(seller_user.id), database_name)
 
             status, transaction_id = new_transaction(buyer_euser, seller_euser, product.price, database_name, TransactionType.shop_buy, product=product)

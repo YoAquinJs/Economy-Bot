@@ -45,12 +45,13 @@ def admin_required():
     
     async def predicate(ctx: discord.ext.commands.context) -> bool:
         database_name = get_database_name(ctx.guild)
-        guild_settings = GuildSettings.from_database(database_name)
+        admin_role = GuildSettings.from_database(database_name).admin_role
 
-        have_admin = ctx.channel.permissions_for(ctx.author).administrator is True if guild_settings.admin_role is None else guild_settings.admin_role in ctx.author.roles
+        e_user = EconomyUser(id_to_objectid(ctx.author.id), database_name)
+        have_admin = await e_user.is_admin(ctx.channel)
 
         if have_admin is False:
-            await send_message(ctx, f"Usuario no posee permisos de administrador{'' if guild_settings.admin_role is None else f', debido a no poseer el rol {guild_settings.admin_role.mention}'}", auto_time=True)
+            await send_message(ctx, f"Usuario no posee permisos de administrador{'' if admin_role is None else f', debido a no poseer el rol {admin_role.mention}'}", auto_time=True)
 
         return have_admin
     
