@@ -11,6 +11,7 @@ client = discord_client.get_client()
 global_settings = utils.get_global_settings()
 mongo_client.init_database()
 
+#registro de eventos y comandos del bot
 import bot.commands
 import bot.events
 

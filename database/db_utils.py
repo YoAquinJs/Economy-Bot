@@ -1,7 +1,6 @@
 """El modulo db_utils provee metodos CRUD para gestionar la base de datos de MongoDB"""
 
 import pymongo
-from models.enums import CollectionNames
 from database.mongo_client import get_mongo_client
 
 _mongo_client = get_mongo_client()

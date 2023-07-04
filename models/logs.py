@@ -3,7 +3,6 @@
 import bson
 import pymongo
 
-from models.economy_user import EconomyUser
 from database import db_utils
 from models.enums import CollectionNames, TransactionType
 

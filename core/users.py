@@ -7,7 +7,6 @@ from random import choice
 from models.economy_user import EconomyUser
 from models.enums import CollectionNames
 from database.db_utils import query_all
-from utils.utils import id_to_objectid
 
 def get_users_starting_with(search: str, database_name: str) -> List[EconomyUser]:
     """Busqueda de todos los usuarios registrados 
