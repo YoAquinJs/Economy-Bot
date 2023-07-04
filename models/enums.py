@@ -65,6 +65,7 @@ class CommandNames(Enum):
     stopforge = 'stopforge'
     reset = 'reset'
     config = 'config'
+    configayuda = 'configayuda'
 
 class GuildSettingsNames(Enum):
     """Enum de los nombres de los atributos de las configuraciones del bot en un servidor"""
@@ -74,3 +75,5 @@ class GuildSettingsNames(Enum):
     coin_name = 'nombre_moneda'
     admin_role = 'rol_admin'
     initial_number_of_coins = 'balance_inicial'
+    forge_quantity = 'cantidad_forjado'
+    forge_time_span = 'segundos_forjado'

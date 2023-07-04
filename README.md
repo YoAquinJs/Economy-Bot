@@ -36,7 +36,9 @@ La aplicacion utiliza un archivo de configuracion con el nombre de ```settings.j
   "prefix" : "$ | Prefijo de los comandos del Bot (char)",
   "economy_name": "Discord-conomy | Nombre de la economia del servidor (string)",
   "coin_name": "discoin | Nombre de la moneda del servidor (string)",
-  "initial_number_of_coins": "1.0 | Numero de monedas otorgadas al registrarse un usuario (float)"
+  "initial_number_of_coins": "1.0 | Numero de monedas otorgadas al registrarse un usuario (float)",
+  "forge_time_span": "15 | Intervalo de segundos de cada forjado (int)",
+  "forge_quantity": "1.0 | Numero de monedas otorgadas por forjado (float)"
 }
 ``` 
 

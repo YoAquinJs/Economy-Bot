@@ -571,12 +571,13 @@ async def init_forge(ctx: Context):
     """
 
 
+    log_live_time = 15
     database_name = get_database_name(ctx.guild)
     guild_settings = GuildSettings.from_database(database_name)
     
     await ctx.message.delete()
     embed = discord.Embed(colour=discord.colour.Color.gold(), title="Forjado de Monedas",
-                          description=f"Cada {15} segundos se forjaran {1} {guild_settings.coin_name}.")
+                          description=f"Cada {guild_settings.forge_time_span} segundos se forjaran {guild_settings.forge_quantity} {guild_settings.coin_name}.")
     await ctx.channel.send(embed=embed)
 
     fetched_users = db_utils.query_all(database_name, CollectionNames.users.value).find({})
@@ -584,17 +585,18 @@ async def init_forge(ctx: Context):
 
     core.economy_management.forge_coins_status(database_name, True)
 
-    wait_time = 15
+    wait_time = guild_settings.forge_time_span
     while core.economy_management.is_forging(database_name):
         # Esperar para generar monedas  
-        wait_time = 15
+        wait_time = guild_settings.forge_time_span
 
         random_user = core.users.get_random_user(core.economy_management._users[database_name], database_name)
         if random_user._id == EconomyUser.get_system_user()._id:
-            asyncio.create_task(send_message(ctx, "Ningun usuario registrado, moneda asignada al sistema", time=15))
-            continue
+            asyncio.create_task(send_message(ctx, "Ningun usuario registrado, se detiene el forjado", time=log_live_time))
+            core.economy_management.forge_coins_status(database_name, False)
+            break
         else:
-            status, transaction_id = core.transactions.new_transaction(None, random_user, 1, database_name, TransactionType.forged)
+            status, transaction_id = core.transactions.new_transaction(None, random_user, guild_settings.forge_quantity, database_name, TransactionType.forged)
 
             if status == TransactionStatus.receptor_not_exists:
                 fetched_users = db_utils.query_all(database_name, CollectionNames.users.value).find({})
@@ -603,8 +605,8 @@ async def init_forge(ctx: Context):
             else:
                 guild_settings = GuildSettings.from_database(database_name)
                 
-                asyncio.create_task(send_message(ctx, f"Se ha asignado a {random_user.name}", f"Se han forjado {1} {guild_settings.coin_name}", time=15))
-                asyncio.create_task(ctx.guild.get_member(objectid_to_id(random_user._id)).send(f"Se te han asignado {1} {guild_settings.coin_name} forjadas,\n "
+                asyncio.create_task(send_message(ctx, f"Se ha asignado a {random_user.name}", f"Se han forjado {guild_settings.forge_quantity} {guild_settings.coin_name}", time=log_live_time))
+                asyncio.create_task(ctx.guild.get_member(objectid_to_id(random_user._id)).send(f"Se te han asignado {guild_settings.forge_quantity} {guild_settings.coin_name} forjadas,\n "
                                                                  f"tu saldo actual es de {random_user.balance.value} {guild_settings.coin_name}.\n"
                                                                  f"ID de transacción: {transaction_id}"))
         await asyncio.sleep(wait_time)
@@ -674,7 +676,7 @@ async def config_economy(ctx: Context, *, params: str):
             
             guild_settings.max_decimals = max_decimals
         except:
-            await send_message(ctx, f"El valor {GuildSettingsNames.max_decimals.value} no es valido")
+            await send_message(ctx, f"El valor {GuildSettingsNames.max_decimals.value} no es valido", auto_time=True)
             return
             
     coin_name_str = f"'{GuildSettingsNames.coin_name.value}':"
@@ -687,7 +689,7 @@ async def config_economy(ctx: Context, *, params: str):
             
             guild_settings.coin_name = coin_name
         except:
-            await send_message(ctx, f"El valor {GuildSettingsNames.coin_name.value} no es valido")
+            await send_message(ctx, f"El valor {GuildSettingsNames.coin_name.value} no es valido", auto_time=True)
             return
             
     admin_role_str = f"'{GuildSettingsNames.admin_role.value}':"
@@ -703,7 +705,7 @@ async def config_economy(ctx: Context, *, params: str):
 
                 guild_settings.admin_role = admin_role
         except:
-            await send_message(ctx, f"El valor {GuildSettingsNames.admin_role.value} no es valido")
+            await send_message(ctx, f"El valor {GuildSettingsNames.admin_role.value} no es valido", auto_time=True)
             return
             
     economy_name_str = f"'{GuildSettingsNames.economy_name.value}':"
@@ -716,7 +718,7 @@ async def config_economy(ctx: Context, *, params: str):
             
             guild_settings.economy_name = economy_name
         except:
-            await send_message(ctx, f"El valor {GuildSettingsNames.economy_name.value} no es valido")
+            await send_message(ctx, f"El valor {GuildSettingsNames.economy_name.value} no es valido", auto_time=True)
             return
 
     initial_number_of_coins_str = f"'{GuildSettingsNames.initial_number_of_coins.value}':"
@@ -731,14 +733,116 @@ async def config_economy(ctx: Context, *, params: str):
             
             guild_settings.initial_number_of_coins = initial_number_of_coins
         except:
-            await send_message(ctx, f"El valor {GuildSettingsNames.initial_number_of_coins.value} no es valido")
+            await send_message(ctx, f"El valor {GuildSettingsNames.initial_number_of_coins.value} no es valido", auto_time=True)
             return
     
+    forge_quantity_str = f"'{GuildSettingsNames.forge_quantity.value}':"
+    forge_quantity_idx = params.rfind(forge_quantity_str)
+    if forge_quantity_idx != -1:
+        if core.economy_management.is_forging(database_name) is True:
+            await send_message(ctx, f"No se pueden modificar las configuraciones del forjado mientras este esta activo", auto_time=True)
+            return
+        
+        forge_quantity = params[forge_quantity_idx+len(forge_quantity_str):params.find('/', forge_quantity_idx+len(forge_quantity_str))]    
+        try:
+            forge_quantity = float(forge_quantity)
+            forge_quantity = round(forge_quantity, guild_settings.max_decimals)
+            if forge_quantity < 0:
+                raise BadArgument("")
+            
+            guild_settings.forge_quantity = forge_quantity
+        except:
+            await send_message(ctx, f"El valor {GuildSettingsNames.forge_quantity.value} no es valido", auto_time=True)
+            return
+        
+    forge_time_span_str = f"'{GuildSettingsNames.forge_time_span.value}':"
+    forge_time_span_idx = params.rfind(forge_time_span_str)
+    if forge_time_span_idx != -1:
+        if core.economy_management.is_forging(database_name) is True:
+            await send_message(ctx, f"No se pueden modificar las configuraciones del forjado mientras este esta activo", auto_time=True)
+            return
+        
+        forge_time_span = params[forge_time_span_idx+len(forge_time_span_str):params.find('/', forge_time_span_idx+len(forge_time_span_str))]    
+        try:
+            forge_time_span = int(forge_time_span)
+
+            if forge_time_span < 0:
+                raise BadArgument("")
+            
+            guild_settings.forge_time_span = forge_time_span
+        except:
+            await send_message(ctx, f"El valor {GuildSettingsNames.forge_time_span.value} no es valido", auto_time=True)
+            return
+        
     succes = guild_settings.modify_in_db(database_name)
     if succes is True:
        await send_message(ctx, f"Configuraciones realizadas correctamente.")
     else:
-       await send_message(ctx, f"Ah ocurrido un error, vuelve a intentarlo.")
+       await send_message(ctx, f"Ah ocurrido un error, vuelve a intentarlo.", auto_time=True)
+       
+       
+@client.command(name=CommandNames.configayuda.value)
+@guild_required()
+async def admin_help_cmd(ctx: Context):
+    """Retorna la lista de las configuraciones disponibles del bot en el servidor de discord
+
+    Args:
+        ctx (discord.ext.commands.Context): Context de discord
+    """
+
+    guild_settings = GuildSettings.from_database(get_database_name(ctx.guild))
+    config_embed = discord.Embed(title="Configuracion del Bot", description="Configuraciones disponibles del bot", colour=discord.colour.Color.orange())
+
+    config_embed.add_field(
+        name=f"Rol de Admin del bot, Valor actual: {f'@{guild_settings.admin_role.name}' if guild_settings.admin_role != None else '*No Configurado*'}",
+        value=f"""Configuracion del rol con permisos de admin del bot, el cual permite ejecutar los comandos admin (exceptuando {_global_settings.prefix}config), para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.admin_role.value}'**:*Nuevo Rol*/...\n
+                Nuevo Rol: Mencion @Rol, si el nuevo rol es el rol por defecto @everyone la configuracion vuelve a No Configurado"""
+    )
+
+    config_embed.add_field(
+        name=f"Nombre de la Economia, Valor actual: {guild_settings.economy_name}",
+        value=f"""Configuracion del nombre de la economia del servidor, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.economy_name.value}'**:*Nuevo Nombre*/...\n
+                Nuevo Nombre: Texto sin incluir'/'"""
+    )
+    
+    config_embed.add_field(
+        name=f"Nombre de la Moneda, Valor actual: {guild_settings.coin_name}",
+        value=f"""Configuracion del nombre de la moneda del servidor, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.coin_name.value}'**:*Nuevo Nombre*/...\n
+                Nuevo Nombre: Texto sin incluir'/'"""
+    )
+    
+    config_embed.add_field(
+        name=f"Balance inicial de los usuarios, Valor actual: {guild_settings.initial_number_of_coins}",
+        value=f"""Configuracion del balance inicial que tienen los usuarios al registrarse en el bot, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.initial_number_of_coins.value}'**:*Nuevo Balance*/...\n
+                Balance: Numero no negativo con y sin decimales"""
+    )
+    
+    config_embed.add_field(
+        name=f"Maximo numero de decimales, Valor actual: {guild_settings.max_decimals}",
+        value=f"""Configuracion de la cantidad maxima de decimales, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.max_decimals.value}'**:*Nuevo Nombre*/...\n
+                Nuevo nombre: Texto sin incluir'/'"""
+    )
+    
+    config_embed.add_field(
+        name=f"Cantidad de monedas por forjado, Valor actual: {guild_settings.forge_quantity}",
+        value=f"""Configuracion de monedas por forjado, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.forge_quantity.value}'**:*Nueva Cantidad*/...\n
+                Nueva Cantidad: Numero no negativo con y sin decimales'/'"""
+    )
+    
+    config_embed.add_field(
+        name=f"Intervalo de segundos de cada forjado, Valor actual: {guild_settings.forge_time_span}",
+        value=f"""Configuracion del intervalor de tiempo de cada forjado, para configurar en el comando escribir:\n
+                .../**'{GuildSettingsNames.forge_time_span.value}'**:*Nueva Cantidad*/...\n
+                Nueva Cantidad: Numero no negativo sin decimales'/'"""
+    )
+    
+    await ctx.send(embed=config_embed)
 
 
 @client.command(name=CommandNames.adminayuda.value)
@@ -750,10 +854,7 @@ async def admin_help_cmd(ctx: Context):
         ctx (discord.ext.commands.Context): Context de discord
     """
 
-    guild_settings = GuildSettings.from_database(get_database_name(ctx.guild)) if ctx.guild != None else None
-    coin_name = guild_settings.coin_name if ctx.guild != None else "(*Moneda del Servidor*)"
-
-    
+    coin_name = GuildSettings.from_database(get_database_name(ctx.guild)).coin_name if ctx.guild != None else "(*Moneda del Servidor*)"
     embed = discord.Embed(title=f"ECONOMY BOT {_global_settings.prefix}{CommandNames.adminayuda.value}",
                           description="Lista de los comandos que requiren permisos de administrador del Economy Bot",
                           colour=discord.colour.Color.orange())
@@ -793,54 +894,10 @@ async def admin_help_cmd(ctx: Context):
     
     embed.add_field(
         name=f"{_global_settings.prefix}config *parametros*",
-        value=f"Modifica la configuracion del bot, ver configuraciones del bot para mas detalles. __Require permisos de administrador en el servidor, no del bot__\n\n"
+        value=f"Modifica la configuracion del bot, ver {_global_settings.prefix}configayuda para mas detalles. __Require permisos de administrador en el servidor, no del bot__\n\n"
               "Argumentos:\n"
               "*parametros*: 'Llave1':valor1/'Llave2':valor2/... Nombre del parametro a modificar encerrado en ''"
               "y seguido del valor separado por ':', y usar '/' para separar los parametros\n"
     )
     
     await ctx.send(embed=embed)
-    
-    if guild_settings is None:
-        return
-    
-    config_embed = discord.Embed(title="Configuracion del Bot",
-                      description="Configuraciones disponibles del bot",
-                      colour=discord.colour.Color.orange())
-
-    config_embed.add_field(
-        name=f"Rol de Admin del bot, Valor actual: {f'@{guild_settings.admin_role.name}' if guild_settings.admin_role != None else '*No Configurado*'}",
-        value=f"""Configuracion del rol con permisos de admin del bot, el cual permite ejecutar los comandos admin (exceptuando {_global_settings.prefix}config), para configurar en el comando escribir:\n
-                .../**'{GuildSettingsNames.admin_role.value}'**:*Nuevo Rol*/...\n
-                Nuevo Rol: Mencion @Rol, si el nuevo rol es el rol por defecto @everyone la configuracion vuelve a No Configurado"""
-    )
-
-    config_embed.add_field(
-        name=f"Nombre de la Economia, Valor actual: {guild_settings.economy_name}",
-        value=f"""Configuracion del nombre de la economia del servidor, para configurar en el comando escribir:\n
-                .../**'{GuildSettingsNames.economy_name.value}'**:*Nuevo Nombre*/...\n
-                Nuevo Nombre: Texto sin incluir '/'"""
-    )
-    
-    config_embed.add_field(
-        name=f"Nombre de la Moneda, Valor actual: {guild_settings.coin_name}",
-        value=f"""Configuracion del nombre de la moneda del servidor, para configurar en el comando escribir:\n
-                .../**'{GuildSettingsNames.coin_name.value}'**:*Nuevo Nombre*/...\n
-                Nuevo Nombre: Texto sin incluir '/'"""
-    )
-    
-    config_embed.add_field(
-        name=f"Balance inicial de los usuarios, Valor actual: {guild_settings.initial_number_of_coins}",
-        value=f"""Configuracion del balance inicial que tienen los usuarios al registrarse en el bot, para configurar en el comando escribir:\n
-                .../**'{GuildSettingsNames.initial_number_of_coins.value}'**:*Nuevo Balance*/...\n
-                Balance: Numero no negativo con y sin decimales"""
-    )
-    
-    config_embed.add_field(
-        name=f"Maximo numero de decimales, Valor actual: {guild_settings.max_decimals}",
-        value=f"""Configuracion de la cantidad maxima de decimales , para configurar en el comando escribir:\n
-                .../**'{GuildSettingsNames.max_decimals.value}'**:*Nuevo Nombre*/...\n
-                Nuevo nombre: Texto sin incluir '/'"""
-    )
-    
-    await ctx.send(embed=config_embed)

@@ -20,6 +20,8 @@ class GuildSettings():
         coin_name (str): Nombre de la moneda
         initial_number_of_coins (float): Numero de monedas que se le asigna a un usuario cuando se registra
         admin_role (discord.Role): Rol de administrador del bot en el servidor
+        forge_time_span (int): Intervalo de segundos de cada forjado
+        forge_quantity (float): Numero de monedas otorgadas por forjado
     """
     
     max_decimals: int = ''
@@ -27,7 +29,8 @@ class GuildSettings():
     coin_name: str = ''
     initial_number_of_coins: float = 0.0
     admin_role: discord.Role = None
-
+    forge_time_span: int = 0
+    forge_quantity: float = 0.0
 
     def __init__(self, bson):
         """Crea objeto GuildSettings a partir de un bson
@@ -67,7 +70,9 @@ class GuildSettings():
             "economy_name": global_settings.economy_name,
             "coin_name": global_settings.coin_name,
             "initial_number_of_coins": global_settings.initial_number_of_coins,
-            "admin_role": None
+            "admin_role": None,
+            "forge_time_span": global_settings.forge_time_span,
+            "forge_quantity": global_settings.forge_quantity 
         })
         
     @classmethod
