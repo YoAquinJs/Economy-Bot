@@ -4,7 +4,7 @@ import bson
 from typing import Mapping, List
 
 from database import db_utils
-from database.db_utils import CollectionNames
+from models.enums import CollectionNames
 from models.guild_settings import GuildSettings
 
 _forge: Mapping[str, bool] = {}
